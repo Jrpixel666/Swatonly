@@ -192,7 +192,11 @@ class Installer(private val ctx: Context, private val listener: Listener) {
             val payload = File(ms, "payload")
             if (payload.exists()) deleteTree(payload)
             payload.mkdirs()
-            ctx.assets.open("manjaro-sway/payload.tar.gz").use { TarExtractor(payload).extract(it) }
+            // aapt strips ".gz" from asset names (and stores them uncompressed), so accept every spelling
+            val name = listOf("payload.tgz", "payload.tar", "payload.tar.gz").firstOrNull { n ->
+                try { ctx.assets.open("manjaro-sway/$n").close(); true } catch (_: IOException) { false }
+            } ?: throw IOException("manjaro-sway payload missing from the APK")
+            ctx.assets.open("manjaro-sway/$name").use { TarExtractor(payload).extract(it) }
             for (f in listOf("TAG", "Packages-Desktop", "LICENSE")) {
                 try {
                     ctx.assets.open("manjaro-sway/$f").use { input -> FileOutputStream(File(ms, f)).use { input.copyTo(it) } }

@@ -2,7 +2,7 @@
 # Fetches the manjaro-sway release the launcher is built from and stages the
 # parts the APK needs into app/src/main/assets/manjaro-sway:
 #
-#   payload.tar.gz   manjaro-sway-settings payload (installed into the proot rootfs)
+#   payload.tgz   manjaro-sway-settings payload (installed into the proot rootfs)
 #   themes/          sway themes (theme.conf, foot-theme.ini, packages)
 #   templates/       background template used for the launcher wallpaper
 #   wallpapers/      manjaro-sway-wallpapers (scalable svg)
@@ -40,7 +40,7 @@ STAGE="$WORK/payload"
 mkdir -p "$STAGE"
 cp -a "$SETTINGS/etc" "$SETTINGS/usr" "$STAGE/"
 find "$STAGE/usr/bin" "$STAGE/usr/local/bin" "$STAGE/usr/share/sway/scripts" -type f -exec chmod 755 {} +
-tar --owner=0 --group=0 --numeric-owner -czf "$OUT/payload.tar.gz" -C "$STAGE" .
+tar --owner=0 --group=0 --numeric-owner -czf "$OUT/payload.tgz" -C "$STAGE" .
 
 cp -a "$SETTINGS/usr/share/sway/themes/." "$OUT/themes/"
 cp "$SETTINGS/usr/share/sway/templates/manjarosway-scalable.svg" "$OUT/templates/"
