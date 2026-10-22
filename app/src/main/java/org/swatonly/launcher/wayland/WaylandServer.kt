@@ -399,7 +399,7 @@ class WaylandServer private constructor(private val ctx: Context) {
         keyboardFocus?.client?.dataDevices?.forEach { it.offerText(text) }
     }
 
-    fun setSelection(src: DataSourceRes?) {
+    fun claimSelection(src: DataSourceRes?) {
         if (selection !== src) selection?.let { if (it.alive) it.cancel() }
         selection = src
         if (src == null) return

@@ -155,7 +155,7 @@ class DataDeviceRes(client: Client, id: Int, version: Int) : Resource(client, id
             1 -> {
                 val src = client.optional<DataSourceRes>(m.obj())
                 m.uint()
-                client.server.setSelection(src)
+                client.server.claimSelection(src)
             }
             2 -> destroy()
         }
