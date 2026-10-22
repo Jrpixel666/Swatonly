@@ -7,6 +7,7 @@
 #   libproot-loader.so   proot's loader (PROOT_LOADER)
 #   libproot-loader32.so 32-bit loader (PROOT_LOADER_32), where available
 #   libtalloc.so         talloc, with proot's DT_NEEDED rewritten to this name
+#   libandroid-shmem.so  SysV shared memory emulation proot links against
 #
 # Requires: curl, ar (binutils) or dpkg-deb, tar, xz, patchelf
 set -euo pipefail
@@ -50,7 +51,7 @@ for arch in "${!ABIS[@]}"; do
     }
 
     dir="$WORK/$arch"
-    for pkg in proot libtalloc; do
+    for pkg in proot libtalloc libandroid-shmem; do
         f=$(pkgfile "$pkg")
         [ -n "$f" ] || { echo "$pkg not in index for $arch" >&2; exit 1; }
         echo "    $pkg: $f"
@@ -73,6 +74,9 @@ for arch in "${!ABIS[@]}"; do
         patchelf --replace-needed "$old_needed" libtalloc.so "$OUT/$abi/libproot.so"
     fi
     patchelf --set-soname libtalloc.so "$OUT/$abi/libtalloc.so"
+    shmem=$(ls "$dir/libandroid-shmem/$prefix/lib/"libandroid-shmem.so* | head -1)
+    cp -L "$shmem" "$OUT/$abi/libandroid-shmem.so"
+    patchelf --remove-rpath "$OUT/$abi/libandroid-shmem.so" || true
     patchelf --remove-rpath "$OUT/$abi/libproot.so" || true
     patchelf --remove-rpath "$OUT/$abi/libtalloc.so" || true
     echo "    needed: $(patchelf --print-needed "$OUT/$abi/libproot.so" | tr '\n' ' ')"
