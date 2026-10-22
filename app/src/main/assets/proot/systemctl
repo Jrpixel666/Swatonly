@@ -1,0 +1,78 @@
+#!/bin/bash
+# Swatonly: systemd does not run under proot. manjaro-sway starts its session
+# daemons with `systemctl --user enable --now <unit>`, so this shim reads the
+# unit's ExecStart= and runs it as a plain background process instead.
+args=(); now=0
+for a in "$@"; do
+    case "$a" in
+        --now) now=1 ;;
+        --user|--system|--no-reload|--quiet|-q|--no-block|--no-pager|--global) ;;
+        *) args+=("$a") ;;
+    esac
+done
+cmd="${args[0]:-}"; units=("${args[@]:1}")
+rundir="${XDG_RUNTIME_DIR:-/tmp}/swatonly-units"
+mkdir -p "$rundir"
+envfile="$rundir/environment"
+
+unit_file() {
+    local u=$1
+    [[ $u == *.* ]] || u="$u.service"
+    for d in "$HOME/.config/systemd/user" /etc/systemd/user /usr/lib/systemd/user /etc/systemd/system /usr/lib/systemd/system; do
+        [ -f "$d/$u" ] && { echo "$d/$u"; return 0; }
+    done
+    return 1
+}
+name_of() { local u=${1%.service}; echo "${u%.socket}"; }
+pid_of() { cat "$rundir/$(name_of "$1").pid" 2>/dev/null; }
+running() { local p; p=$(pid_of "$1") && [ -n "$p" ] && kill -0 "$p" 2>/dev/null; }
+
+start_unit() {
+    local f exec_line n
+    n=$(name_of "$1")
+    running "$n" && return 0
+    f=$(unit_file "$n.service") || return 0
+    exec_line=$(grep -m1 '^ExecStart=' "$f" | cut -d= -f2- | sed 's/^[-@+!:]*//')
+    [ -n "$exec_line" ] || return 0
+    # no socket activation here (foot --server=3): let foot open its own socket
+    exec_line=${exec_line//--server=3/--server}
+    (
+        set -a; [ -f "$envfile" ] && . "$envfile"; set +a
+        exec setsid bash -c "exec $exec_line"
+    ) >>"$rundir/$n.log" 2>&1 </dev/null &
+    echo $! > "$rundir/$n.pid"
+}
+stop_unit() {
+    local n; n=$(name_of "$1")
+    running "$n" && kill "$(pid_of "$n")" 2>/dev/null
+    : > "${rundir:?}/${n:?}.pid"
+}
+
+case "$cmd" in
+    start) for u in "${units[@]}"; do start_unit "$u"; done ;;
+    enable) [ $now = 1 ] && for u in "${units[@]}"; do start_unit "$u"; done ;;
+    stop) for u in "${units[@]}"; do stop_unit "$u"; done ;;
+    disable) [ $now = 1 ] && for u in "${units[@]}"; do stop_unit "$u"; done ;;
+    restart|reload|reload-or-restart|try-restart|try-reload-or-restart)
+        for u in "${units[@]}"; do stop_unit "$u"; sleep 0.2; start_unit "$u"; done ;;
+    is-active)
+        for u in "${units[@]}"; do if running "$u"; then echo active; else echo inactive; exit 3; fi; done ;;
+    is-enabled) echo enabled ;;
+    status)
+        for u in "${units[@]}"; do
+            if running "$u"; then echo "* $u - running (pid $(pid_of "$u"))"; else echo "o $u - inactive"; fi
+            tail -n 5 "$rundir/$(name_of "$u").log" 2>/dev/null
+        done ;;
+    set-environment)
+        for kv in "${units[@]}"; do
+            k=${kv%%=*}; v=${kv#*=}
+            [ -f "$envfile" ] && sed -i "/^$k=/d" "$envfile"
+            printf '%s=%q\n' "$k" "$v" >> "$envfile"
+        done ;;
+    unset-environment)
+        for k in "${units[@]}"; do [ -f "$envfile" ] && sed -i "/^$k=/d" "$envfile"; done ;;
+    list-units)
+        for p in "$rundir"/*.pid; do [ -e "$p" ] || continue; n=$(basename "$p" .pid); running "$n" && echo "$n.service running"; done ;;
+    *) exit 0 ;;
+esac
+exit 0

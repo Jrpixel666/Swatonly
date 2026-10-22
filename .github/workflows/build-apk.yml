@@ -1,0 +1,65 @@
+name: build-apk
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      manjaro_sway_tag:
+        description: manjaro-sway release tag to build from
+        default: "202610180719"
+      release:
+        description: publish the APK as a GitHub release
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    env:
+      MANJARO_SWAY_TAG: ${{ inputs.manjaro_sway_tag || '202610180719' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Install tools
+        run: sudo apt-get update && sudo apt-get install -y patchelf binutils xz-utils
+
+      - name: Fetch manjaro-sway ${{ env.MANJARO_SWAY_TAG }}
+        run: scripts/fetch-manjaro-sway.sh "$MANJARO_SWAY_TAG"
+
+      - name: Fetch proot (Termux build)
+        run: scripts/fetch-proot.sh
+
+      - name: Build APK
+        run: ./gradlew --no-daemon assembleRelease -PmanjaroSwayTag="$MANJARO_SWAY_TAG"
+
+      - name: Collect APK
+        run: |
+          mkdir -p dist
+          cp app/build/outputs/apk/release/app-release.apk "dist/swatonly-launcher-$MANJARO_SWAY_TAG.apk"
+          ls -la dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: swatonly-launcher-apk
+          path: dist/*.apk
+
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('build-{0}', github.run_number) }}
+          name: Swatonly Launcher (manjaro-sway ${{ env.MANJARO_SWAY_TAG }})
+          files: dist/*.apk

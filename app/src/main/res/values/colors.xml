@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- matcha-green, the manjaro-sway default theme -->
+    <color name="sway_bg">#141A1B</color>
+    <color name="sway_surface">#282A2B</color>
+    <color name="sway_text">#EEEEEE</color>
+    <color name="sway_accent">#16A085</color>
+    <color name="arch_green">#35BF5C</color>
+</resources>

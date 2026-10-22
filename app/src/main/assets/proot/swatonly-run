@@ -1,0 +1,5 @@
+#!/bin/bash
+# Swatonly: start a program the way the launcher does (detached, logged).
+# Usage: swatonly-run <command...>
+log="${XDG_RUNTIME_DIR:-/tmp}/swatonly-run.log"
+setsid "$@" >>"$log" 2>&1 </dev/null &

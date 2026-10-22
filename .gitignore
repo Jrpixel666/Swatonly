@@ -1,0 +1,10 @@
+.gradle/
+build/
+local.properties
+.idea/
+*.iml
+.DS_Store
+# fetched at build time by scripts/fetch-*.sh
+app/src/main/assets/manjaro-sway/
+app/src/main/jniLibs/
+/work/

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Swatonly" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:colorPrimary">@color/sway_bg</item>
+        <item name="android:colorPrimaryDark">@color/sway_bg</item>
+        <item name="android:colorAccent">@color/sway_accent</item>
+        <item name="android:windowBackground">@color/sway_bg</item>
+        <item name="android:statusBarColor">@color/sway_bg</item>
+        <item name="android:navigationBarColor">@color/sway_bg</item>
+        <item name="android:textColor">@color/sway_text</item>
+        <item name="android:alertDialogTheme">@style/Theme.Swatonly.Dialog</item>
+    </style>
+
+    <style name="Theme.Swatonly.Launcher">
+        <item name="android:windowShowWallpaper">false</item>
+        <item name="android:windowTranslucentStatus">false</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:windowNoTitle">true</item>
+    </style>
+
+    <style name="Theme.Swatonly.Window">
+        <item name="android:windowBackground">@android:color/black</item>
+    </style>
+
+    <style name="Theme.Swatonly.Dialog" parent="@android:style/Theme.Material.Dialog.Alert">
+        <item name="android:colorAccent">@color/sway_accent</item>
+        <item name="android:colorBackground">@color/sway_surface</item>
+        <item name="android:textColorPrimary">@color/sway_text</item>
+    </style>
+</resources>
