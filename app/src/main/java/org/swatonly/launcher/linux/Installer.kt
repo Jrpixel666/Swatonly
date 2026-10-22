@@ -175,7 +175,7 @@ class Installer(private val ctx: Context, private val listener: Listener) {
     }
 
     companion object {
-        private val SCRIPTS = listOf("setup.sh", "systemctl", "swatonly-run", "sway-session.sh")
+        private val SCRIPTS = listOf("setup.sh", "systemctl", "swatonly-run", "sway-session.sh", "sway-run")
         private val FILES = listOf("profile.sh", "sway-proot.conf")
 
         fun stagePayload(ctx: Context) {

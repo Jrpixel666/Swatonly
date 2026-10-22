@@ -11,7 +11,7 @@ import android.view.SurfaceHolder
 
 /**
  * A Linux toplevel window. It is shown by its own [WindowActivity], i.e. its
- * own Android task: Recents, split screen and freeform windows all work on
+ * Android activity; all of them share the "linux" task. Recents, split screen and freeform work on
  * Linux windows like on Android apps.
  */
 class Window(val server: WaylandServer, val toplevel: XdgToplevelRes) {

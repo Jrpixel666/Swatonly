@@ -168,7 +168,7 @@ class SettingsActivity : Activity() {
         nav("Tweaks", "session daemons, theme application, window manager and sway variables found in the install", "tweaks")
         heading("Launcher")
         nav("Bar & home screen", "bar icons, clock, wallpaper, menu", "launcher")
-        nav("Linux windows", "every Linux window as its own Android task, scale, input", "windows")
+        nav("Linux windows", "apps tiled inside sway, scale, input", "windows")
         heading("System")
         nav("Linux (proot)", when {
             rootFs.swayInstalled -> "Manjaro Sway installed" + if (Session.swayRunning) " · sway running" else ""
@@ -308,8 +308,9 @@ class SettingsActivity : Activity() {
 
     private fun windowsPage() {
         title.text = "Linux windows"
-        heading("Tasks")
-        switch("Every Linux window is its own Android task", "shown separately in Recents and split screen; off: all windows share one task", { prefs.windowPerTask }) { prefs.windowPerTask = it }
+        heading("Window manager")
+        switch("Open Linux apps inside sway", "sway tiles them like on the desktop; off: each app fills the screen on its own", { prefs.appsInSway }) { prefs.appsInSway = it }
+        if (!app.rootFs.swayInstalled) note("Sway is not installed yet: Settings › Linux › Install Manjaro Sway adds the full sway tiling window manager.")
         heading("Display")
         choice("Scale (HiDPI)", "wl_output scale; restart the Linux session to apply",
             listOf("1" to "1×", "2" to "2×", "3" to "3×", "4" to "4×"), { "${prefs.outputScale}" }) { prefs.outputScale = it.toInt() }

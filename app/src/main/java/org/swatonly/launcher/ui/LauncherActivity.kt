@@ -414,7 +414,7 @@ class LauncherActivity : Activity() {
             prefs.lastSetupChoice = "launcher"
         }
         val swayBody = if (rootFs.swayInstalled)
-            "Manjaro Sway is installed: start the sway session (proot, no root). Every Linux window opens as its own Android task."
+            "Manjaro Sway is installed: start the sway session (proot, no root). Linux apps open tiled inside sway."
         else
             "Download Manjaro, then install sway and the manjaro-sway-settings from release ${BuildConfig.MANJARO_SWAY_TAG} under proot, without root. Firmware and kernel modules are skipped."
         option(if (rootFs.swayInstalled) "Launcher + Sway" else "Launcher + Sway (install)", swayBody) {

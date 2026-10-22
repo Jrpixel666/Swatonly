@@ -23,7 +23,8 @@ import java.io.IOException
 /**
  * A small Wayland compositor. Linux programs under proot connect to
  * $XDG_RUNTIME_DIR/wayland-0 (bound to the app's files/run); every
- * xdg_toplevel they create opens as its own Android task.
+ * xdg_toplevel they create is shown by a WindowActivity. With sway installed
+ * the only toplevel is normally sway itself, which tiles the apps inside it.
  *
  * Supported: wl_compositor 4, wl_subcompositor, wl_shm (ARGB/XRGB8888),
  * wl_output 3, wl_seat 5 (pointer, keyboard, touch), xdg_wm_base 3,
@@ -185,10 +186,10 @@ class WaylandServer private constructor(private val ctx: Context) {
         }
     }
 
-    /** Opens the window's activity, as its own task when that setting is on. */
+    /** Opens the window's activity (all Linux windows share one task). */
     fun show(w: Window) {
         val app = App.instance
-        val i = WindowActivity.intent(ctx, w.id, app.prefs.windowPerTask)
+        val i = WindowActivity.intent(ctx, w.id)
         try { ctx.startActivity(i) } catch (e: Exception) { Log.w(TAG, "cannot start window activity", e) }
         if (app.resumedActivities == 0) {
             // background activity starts may be blocked: offer the window as a notification too
@@ -208,7 +209,7 @@ class WaylandServer private constructor(private val ctx: Context) {
         val w = synchronized(lock) {
             windows.values.firstOrNull { it.mapped && (it.appId == appId || (appId == "sway" && it.isSway)) }
         } ?: return false
-        from.startActivity(WindowActivity.intent(from, w.id, App.instance.prefs.windowPerTask))
+        WindowActivity.focus(from, w)
         return true
     }
 

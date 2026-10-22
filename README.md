@@ -2,8 +2,8 @@
 
 Swatonly is an Android home screen launcher with the look of
 [Manjaro Sway](https://github.com/manjaro-sway/manjaro-sway). It can also run
-the real Manjaro Sway desktop under **proot**, with **no root**. Every Linux
-window opens as **its own Android task**.
+the real Manjaro Sway desktop under **proot**, with **no root**. Linux apps
+open **inside sway**, which tiles them like on the desktop.
 
 It is built from manjaro-sway release
 [`202610180719`](https://github.com/manjaro-sway/manjaro-sway/releases/tag/202610180719).
@@ -20,7 +20,7 @@ payload and the tweakable `/etc/sway` definitions into the APK.
 | **Setup choice** | Every time the launcher starts it asks: **Launcher only** or **Launcher + Sway** (install on first use, start afterwards). You can turn the question off. |
 | **Themes** | All manjaro-sway themes (matcha, catppuccin, dracula, nordic, atari…), read from `/usr/share/sway/themes` in the install when it exists. A day theme and a night theme work like `theme-toggle.sh`. The active theme can be copied to sway and foot. |
 | **Tweaks** | Discovered from the install's `/etc/sway/autostart` and `/etc/sway/definitions`: every session daemon, every theme-application step and every sway variable. Window-manager options (gaps, borders, focus, layout, keyboard layout) are here too. Changes are written to `~/.config/sway/definitions.d` and `config.d`, then sway reloads. |
-| **Linux windows** | A built-in Wayland compositor gives each `xdg_toplevel` its own Android task, so windows show up in Recents, split screen and freeform mode. Touch becomes mouse input (tap = click, long press = right click, two fingers = scroll). It has an extra-keys row (Esc, Tab, Ctrl, Alt, Super, arrows), supports the soft keyboard, and shares the clipboard with Android. |
+| **Linux windows** | Apps started from the launcher open inside the sway session (one Android window), where the sway tiling window manager arranges them. Without sway (or with *Open Linux apps inside sway* off) each app fills the screen on its own. Touch becomes mouse input (tap = click, long press = right click, two fingers = scroll). It has an extra-keys row (Esc, Tab, Ctrl, Alt, Super, arrows), supports the soft keyboard, and shares the clipboard with Android. |
 | **Terminal** | A built-in terminal (Termux's terminal-view) on the rootfs, using the theme's foot colours. |
 
 ## How the Linux side works

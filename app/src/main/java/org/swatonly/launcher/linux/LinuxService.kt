@@ -147,7 +147,19 @@ object Session {
     fun launch(ctx: Context, name: String, shellCommand: String) {
         LinuxService.start(ctx)
         startBackground(ctx)
-        val p = Proot.spawn(ctx, logName(name), listOf("/bin/bash", "-lc", shellCommand))
+        val rootFs = App.instance.rootFs
+        val inSway = App.instance.prefs.appsInSway && rootFs.swayInstalled
+        val p = if (inSway) {
+            // open it inside sway, which tiles it, and bring the sway window forward
+            startSway(ctx)
+            val cmd = shellCommand.removePrefix("exec ")
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                WaylandServer.instance?.focusWindowByAppId("sway", ctx)
+            }, 800)
+            Proot.spawn(ctx, logName(name), listOf("/bin/bash", "-lc", "/opt/swatonly/sway-run ${Proot.quote(cmd)}"))
+        } else {
+            Proot.spawn(ctx, logName(name), listOf("/bin/bash", "-lc", shellCommand))
+        }
         processes += name to p
         LinuxService.running?.updateNotification()
     }

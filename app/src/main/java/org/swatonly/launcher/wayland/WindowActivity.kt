@@ -28,8 +28,8 @@ import org.swatonly.launcher.apps.IconLoader
 import org.swatonly.launcher.ui.Ui
 
 /**
- * Shows one Linux toplevel. Started with FLAG_ACTIVITY_NEW_DOCUMENT and a
- * per-window data URI, so every Linux window is its own entry in Recents.
+ * Shows one Linux toplevel of the launcher's compositor: normally the sway
+ * session, which tiles every Linux app inside it. All of them share one task.
  */
 class WindowActivity : Activity(), Window.Host {
 
@@ -200,12 +200,12 @@ class WindowActivity : Activity(), Window.Host {
     companion object {
         const val EXTRA_WINDOW = "window"
 
-        fun intent(ctx: Context, windowId: Int, ownTask: Boolean): Intent {
+        fun intent(ctx: Context, windowId: Int): Intent {
             val i = Intent(ctx, WindowActivity::class.java)
             i.putExtra(EXTRA_WINDOW, windowId)
             i.data = Uri.parse("swatonly://window/$windowId")
+            // all Linux windows share one task (taskAffinity "linux"); sway tiles inside its window
             i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            if (ownTask) i.addFlags(Intent.FLAG_ACTIVITY_NEW_DOCUMENT)
             return i
         }
 
@@ -215,7 +215,7 @@ class WindowActivity : Activity(), Window.Host {
             if (host is Activity && !host.isFinishing) {
                 ctx.getSystemService(ActivityManager::class.java).moveTaskToFront(host.taskId, 0)
             } else {
-                ctx.startActivity(intent(ctx, w.id, App.instance.prefs.windowPerTask))
+                ctx.startActivity(intent(ctx, w.id))
             }
         }
     }

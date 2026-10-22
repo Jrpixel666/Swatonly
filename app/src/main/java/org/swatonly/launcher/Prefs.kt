@@ -95,9 +95,10 @@ class Prefs(context: Context) {
         set(v) = sp.edit().putBoolean("ashmem_memfd", v).apply()
 
     // --- windows ---
-    var windowPerTask: Boolean
-        get() = bool("window_per_task", true)
-        set(v) = sp.edit().putBoolean("window_per_task", v).apply()
+    /** Linux apps start inside the sway session (tiled) when sway is installed. */
+    var appsInSway: Boolean
+        get() = bool("apps_in_sway", true)
+        set(v) = sp.edit().putBoolean("apps_in_sway", v).apply()
     var outputScale: Int
         get() = int("output_scale", 2)
         set(v) = sp.edit().putInt("output_scale", v).apply()

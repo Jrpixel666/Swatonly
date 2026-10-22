@@ -246,9 +246,8 @@ class TerminalActivity : Activity(), TerminalSessionClient, TerminalViewClient {
             i.putExtra(EXTRA_TITLE, title)
             i.putExtra(EXTRA_ARGS, guestArgs.toTypedArray())
             setupMode?.let { i.putExtra(EXTRA_SETUP, it) }
-            // each terminal is its own task, like Linux windows
             i.data = Uri.parse("swatonly://terminal/${System.currentTimeMillis()}-${counter++}")
-            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NEW_DOCUMENT)
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             ctx.startActivity(i)
         }
     }

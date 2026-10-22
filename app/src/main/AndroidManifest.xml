@@ -73,7 +73,6 @@
         <activity
             android:name=".term.TerminalActivity"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|keyboard|navigation|density|uiMode"
-            android:documentLaunchMode="intoExisting"
             android:exported="false"
             android:label="@string/terminal"
             android:windowSoftInputMode="adjustResize" />
