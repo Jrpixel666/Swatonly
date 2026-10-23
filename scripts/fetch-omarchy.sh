@@ -8,10 +8,11 @@
 #   REF            the commit setup clones inside proot, so both sides match
 #   VERSION, LICENSE
 #
-# Usage: scripts/fetch-omarchy.sh [ref]   (or OMARCHY_SRC=/path/to/checkout)
+# Usage: scripts/fetch-omarchy.sh [ref]   (default: the repo's default branch;
+#        or OMARCHY_SRC=/path/to/checkout)
 set -euo pipefail
 
-REF="${1:-master}"
+REF="${1:-}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="$ROOT/app/src/main/assets/omarchy"
 WORK="$(mktemp -d)"
@@ -20,9 +21,13 @@ trap 'rm -rf "$WORK"' EXIT
 if [ -n "${OMARCHY_SRC:-}" ]; then
     SRC="$OMARCHY_SRC"
 else
-    echo "==> cloning basecamp/omarchy ($REF)"
-    git clone --quiet --depth 1 --branch "$REF" https://github.com/basecamp/omarchy "$WORK/src" 2>/dev/null \
-        || { git clone --quiet https://github.com/basecamp/omarchy "$WORK/src" && git -C "$WORK/src" checkout --quiet "$REF"; }
+    echo "==> cloning basecamp/omarchy (${REF:-default branch})"
+    if [ -z "$REF" ]; then
+        git clone --quiet --depth 1 https://github.com/basecamp/omarchy "$WORK/src"
+    else
+        git clone --quiet --depth 1 --branch "$REF" https://github.com/basecamp/omarchy "$WORK/src" 2>/dev/null \
+            || { git clone --quiet https://github.com/basecamp/omarchy "$WORK/src" && git -C "$WORK/src" checkout --quiet "$REF"; }
+    fi
     SRC="$WORK/src"
 fi
 
@@ -38,7 +43,7 @@ for t in "$SRC"/themes/*/; do
     cp "$t/colors.toml" "$OUT/themes/$name/"
 done
 cp "$SRC"/install/omarchy-*.packages "$OUT/packages/"
-git -C "$SRC" rev-parse HEAD > "$OUT/REF" 2>/dev/null || echo "$REF" > "$OUT/REF"
+git -C "$SRC" rev-parse HEAD > "$OUT/REF" 2>/dev/null || echo "${REF:-HEAD}" > "$OUT/REF"
 cat "$SRC/version" > "$OUT/VERSION" 2>/dev/null || echo unknown > "$OUT/VERSION"
 cp "$SRC/LICENSE" "$OUT/LICENSE"
 

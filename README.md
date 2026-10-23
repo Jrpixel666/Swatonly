@@ -69,7 +69,7 @@ To build locally (you need the Android SDK and `patchelf`):
 
 ```sh
 scripts/fetch-manjaro-sway.sh 202610180719   # themes, payload, wallpapers -> assets
-scripts/fetch-omarchy.sh master               # Omarchy menu, themes, package lists -> assets
+scripts/fetch-omarchy.sh                      # Omarchy menu, themes, package lists -> assets
 scripts/fetch-proot.sh                       # Termux proot + talloc -> jniLibs
 ./gradlew assembleRelease
 ```

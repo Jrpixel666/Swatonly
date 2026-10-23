@@ -11,8 +11,8 @@ on:
         description: manjaro-sway release tag to build from
         default: "202610180719"
       omarchy_ref:
-        description: basecamp/omarchy branch, tag or commit to bundle
-        default: "master"
+        description: basecamp/omarchy branch, tag or commit to bundle (empty = default branch)
+        default: ""
       release:
         description: publish the APK as a GitHub release
         type: boolean
@@ -43,7 +43,7 @@ jobs:
         run: scripts/fetch-manjaro-sway.sh "$MANJARO_SWAY_TAG"
 
       - name: Fetch Omarchy
-        run: scripts/fetch-omarchy.sh "${{ inputs.omarchy_ref || 'master' }}"
+        run: scripts/fetch-omarchy.sh "${{ inputs.omarchy_ref }}"
 
       - name: Fetch proot (Termux build)
         run: scripts/fetch-proot.sh

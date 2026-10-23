@@ -11,7 +11,7 @@ set -uo pipefail
 
 SW=/opt/swatonly
 OMARCHY_PATH=/usr/share/omarchy
-REF=$(cat "$SW/omarchy/REF" 2>/dev/null || echo master)
+REF=$(cat "$SW/omarchy/REF" 2>/dev/null || echo HEAD)
 export LANG=C.UTF-8 LC_ALL=C.UTF-8
 
 c_green=$'\e[1;32m'; c_yellow=$'\e[1;33m'; c_red=$'\e[1;31m'; c_off=$'\e[0m'
@@ -30,7 +30,7 @@ else
     mkdir -p "$OMARCHY_PATH"
     git -C "$OMARCHY_PATH" init -q
     git -C "$OMARCHY_PATH" remote add origin https://github.com/basecamp/omarchy
-    retry git -C "$OMARCHY_PATH" fetch --depth 1 origin "$REF" || retry git -C "$OMARCHY_PATH" fetch --depth 1 origin master \
+    retry git -C "$OMARCHY_PATH" fetch --depth 1 origin "$REF" || retry git -C "$OMARCHY_PATH" fetch --depth 1 origin HEAD \
         || die "could not download Omarchy"
     git -C "$OMARCHY_PATH" checkout -q -f FETCH_HEAD
 fi

@@ -113,7 +113,7 @@ class InstallActivity : Activity(), Installer.Listener {
         }
     }
 
-    private fun omarchyRef(): String = try { assets.open("omarchy/REF").bufferedReader().use { it.readText().trim() } } catch (_: Exception) { "master" }
+    private fun omarchyRef(): String = try { assets.open("omarchy/REF").bufferedReader().use { it.readText().trim() } } catch (_: Exception) { "HEAD" }
 
     private fun begin(fresh: Boolean) {
         val inst = Installer(this, this)
