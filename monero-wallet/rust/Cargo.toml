@@ -1,0 +1,61 @@
+[package]
+name = "xmrvault"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.89"
+license = "MIT"
+description = "Rust core of the XMR Vault Android wallet: keys, encrypted vault, sync, signing"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# Monero protocol (monero-oxide, audited by Cypher Stack)
+monero-wallet = { version = "0.2", default-features = false, features = ["std", "compile-time-generators"] }
+monero-daemon-rpc = "0.2"
+monero-seed = { path = "vendor/seed" }
+polyseed = { path = "vendor/polyseed" }
+
+# Secrets handling
+zeroize = { version = "1.8", features = ["zeroize_derive", "std", "serde"] }
+subtle = "2.6"
+rand_core = { version = "0.6", features = ["getrandom"] }
+curve25519-dalek = { version = "4", default-features = false, features = ["alloc", "zeroize", "precomputed-tables"] }
+
+# Vault encryption
+argon2 = { version = "0.5", features = ["zeroize"] }
+chacha20poly1305 = { version = "0.10", features = ["std"] }
+sha2 = "0.10"
+
+# Network
+tokio = { version = "1", features = ["rt", "time"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls-webpki-roots-no-provider", "socks"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+webpki-roots = "1"
+digest_auth = "0.3"
+
+# Encoding / FFI
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+hex = "0.4"
+thiserror = "2"
+qrcode = { version = "0.14", default-features = false }
+jni = "0.21"
+libc = "0.2"
+
+[dev-dependencies]
+tempfile = "3"
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+# JNI entry points catch panics and turn them into errors; unwinding must stay on.
+panic = "unwind"
+overflow-checks = true
+debug = false
+strip = "symbols"
+
+[profile.dev.package."*"]
+opt-level = 3

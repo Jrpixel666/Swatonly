@@ -1,0 +1,132 @@
+name: build-wallet-apk
+
+# XMR Vault (monero-wallet/): test the Rust core, run the end-to-end regtest against a real
+# monerod, audit dependencies, then build the APK. Third-party actions are pinned by commit.
+
+on:
+  push:
+    branches: ["**"]
+    paths: ["monero-wallet/**", ".github/workflows/build-wallet-apk.yml"]
+    tags: ["wallet-v*"]
+  pull_request:
+    paths: ["monero-wallet/**", ".github/workflows/build-wallet-apk.yml"]
+  workflow_dispatch:
+    inputs:
+      release:
+        description: publish the APK as a GitHub release
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+env:
+  MONEROD_VERSION: v0.18.5.4
+  # From https://www.getmonero.org/downloads/hashes.txt (GPG-signed by binaryFate).
+  MONEROD_SHA256: ba2928962c101b609434bf8c1b43ad59ebe96c5525977284ca599d8bf0f02d10
+  NDK_VERSION: 27.2.12479018
+  CARGO_NDK_VERSION: 4.1.2
+
+jobs:
+  rust:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: monero-wallet/rust
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Unit tests and lints
+        run: |
+          rustup update stable --no-self-update && rustup default stable
+          cargo test --locked
+          cargo clippy --locked --all-targets -- -D warnings
+
+      - name: Dependency audit (RustSec)
+        run: |
+          cargo install cargo-audit --locked
+          cargo audit --deny warnings
+
+      - name: Start a regtest monerod
+        working-directory: ${{ runner.temp }}
+        run: |
+          curl -sSfLo monero.tar.bz2 "https://downloads.getmonero.org/cli/monero-linux-x64-${MONEROD_VERSION}.tar.bz2"
+          echo "${MONEROD_SHA256}  monero.tar.bz2" | sha256sum -c -
+          tar xjf monero.tar.bz2
+          ./monero-x86_64-linux-gnu-${MONEROD_VERSION}/monerod --regtest --offline --fixed-difficulty 1 \
+            --data-dir regtest --rpc-bind-ip 127.0.0.1 --rpc-bind-port 18081 --non-interactive --no-igd --detach
+          for i in $(seq 30); do curl -sf http://127.0.0.1:18081/get_info >/dev/null && break; sleep 2; done
+
+      - name: End-to-end test (mine, scan, send, reorg, receive)
+        env:
+          MONEROD_URL: http://127.0.0.1:18081
+        run: cargo test --locked --test regtest -- --nocapture
+
+  apk:
+    needs: rust
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
+
+      - name: Android NDK and Rust targets
+        run: |
+          rustup update stable --no-self-update && rustup default stable
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;${NDK_VERSION}"
+          rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
+          cargo install cargo-ndk --locked --version "${CARGO_NDK_VERSION}"
+
+      - name: Signing key
+        env:
+          KEYSTORE_B64: ${{ secrets.XMRVAULT_KEYSTORE_B64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
+            echo "XMRVAULT_KEYSTORE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+          else
+            echo "::warning::XMRVAULT_KEYSTORE_B64 is not set; the APK is signed with a throwaway debug key"
+          fi
+
+      - name: Build APK
+        working-directory: monero-wallet
+        env:
+          XMRVAULT_KEYSTORE_PASSWORD: ${{ secrets.XMRVAULT_KEYSTORE_PASSWORD }}
+          XMRVAULT_KEY_ALIAS: ${{ secrets.XMRVAULT_KEY_ALIAS }}
+          XMRVAULT_KEY_PASSWORD: ${{ secrets.XMRVAULT_KEY_PASSWORD }}
+        run: ./gradlew --no-daemon assembleRelease
+
+      - name: Collect APK
+        run: |
+          mkdir -p dist
+          cp monero-wallet/app/build/outputs/apk/release/app-release.apk dist/xmr-vault.apk
+          rm -f "$RUNNER_TEMP/release.jks"
+          cd dist
+          sha256sum xmr-vault.apk | tee xmr-vault.apk.sha256
+          BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          "$BT/apksigner" verify --print-certs xmr-vault.apk | grep -i sha-256 | tee -a xmr-vault.apk.sha256
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: xmr-vault-apk
+          path: dist/*
+
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/wallet-v') || inputs.release
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
+        with:
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/wallet-v') && github.ref_name || format('wallet-build-{0}', github.run_number) }}
+          name: XMR Vault ${{ github.ref_name }}
+          files: dist/*

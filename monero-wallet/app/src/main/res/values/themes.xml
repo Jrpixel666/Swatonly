@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.XmrVault" parent="android:Theme.Material.NoActionBar">
+        <item name="android:colorPrimary">#FF6600</item>
+        <item name="android:colorAccent">#FF6600</item>
+        <item name="android:windowBackground">#121212</item>
+        <item name="android:statusBarColor">#121212</item>
+        <item name="android:navigationBarColor">#121212</item>
+        <item name="android:textColorPrimary">#EDEDED</item>
+        <item name="android:textColor">#EDEDED</item>
+    </style>
+</resources>

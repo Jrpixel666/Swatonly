@@ -59,6 +59,11 @@ plus Omarchy's menu definition, themes and package lists.
   `xdg_wm_base`, `zxdg_decoration_manager_v1` (always server side) and
   `wl_data_device_manager`.
 
+## XMR Vault (Monero wallet)
+
+[`monero-wallet/`](monero-wallet/README.md) is a separate app: a hardened Monero wallet for
+Android with a Rust core. It builds on its own workflow (`build-wallet-apk.yml`).
+
 ## Building
 
 GitHub Actions builds the APK on every push (`.github/workflows/build-apk.yml`).
