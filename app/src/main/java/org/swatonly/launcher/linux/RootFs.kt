@@ -24,11 +24,19 @@ class RootFs(private val context: Context) {
     val isExtracted: Boolean
         get() = File(dir, "usr/bin/bash").exists() || File(dir, "usr/bin/sh").exists()
 
-    /** "sway" or "base" once setup.sh finished, null otherwise. */
+    /** "sway", "omarchy" or "base" once setup.sh finished, null otherwise. */
     val installedMode: String?
         get() = File(dir, "etc/swatonly/installed").takeIf { it.isFile }?.readText()?.trim()?.ifEmpty { null }
 
-    val swayInstalled: Boolean get() = installedMode == "sway" && File(dir, "usr/bin/sway").exists()
+    /** The Manjaro Sway desktop: installed by both "sway" and "omarchy" setups. */
+    val swayInstalled: Boolean get() = installedMode.let { it == "sway" || it == "omarchy" } && File(dir, "usr/bin/sway").exists()
+
+    val omarchyInstalled: Boolean get() = installedMode == "omarchy" && File(dir, "usr/share/omarchy/bin").isDirectory
+
+    val hyprlandInstalled: Boolean get() = File(dir, "usr/bin/Hyprland").exists()
+
+    /** Which window manager the running session uses ("sway", "hyprland"), from the session's marker. */
+    val runningWm: String? get() = File(runDir, "swatonly-wm").takeIf { it.isFile }?.readText()?.trim()?.ifEmpty { null }
 
     fun has(guestPath: String): Boolean = resolve(guestPath)?.exists() == true
 

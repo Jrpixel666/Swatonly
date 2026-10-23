@@ -74,6 +74,7 @@ object IconLoader {
         val res = when (action) {
             "terminal", "update", "packages" -> R.drawable.ic_terminal
             "settings" -> R.drawable.ic_settings
+            "menu", "install-omarchy" -> R.drawable.ic_monero
             else -> R.drawable.ic_arch
         }
         val d = ctx.getDrawable(res) ?: return null
@@ -83,7 +84,11 @@ object IconLoader {
         val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = theme.surface }
         c.drawRoundRect(RectF(0f, 0f, size.toFloat(), size.toFloat()), size * 0.22f, size * 0.22f, p)
         val pad = size / 5
-        d.setTint(if (action == "sway" || action == "install") ctx.getColor(R.color.arch_green) else theme.accent)
+        d.setTint(when (action) {
+            "sway", "install" -> ctx.getColor(R.color.arch_green)
+            "menu", "install-omarchy" -> ctx.getColor(R.color.monero_green)
+            else -> theme.accent
+        })
         d.setBounds(pad, pad, size - pad, size - pad)
         d.draw(c)
         return bmp

@@ -157,9 +157,13 @@ class TerminalActivity : Activity(), TerminalSessionClient, TerminalViewClient {
                 if (isFinishing || isDestroyed) return
                 AlertDialog.Builder(this)
                     .setTitle("Manjaro is ready")
-                    .setMessage(if (installed == "sway") "Sway and the manjaro-sway settings are installed. Start the Sway desktop now?" else "The Linux base is ready.")
-                    .setPositiveButton(if (installed == "sway") "Start Sway" else "OK") { _, _ ->
-                        if (installed == "sway") Session.startSway(this)
+                    .setMessage(when (installed) {
+                        "omarchy" -> "Sway, the manjaro-sway settings and Omarchy are installed. Start the desktop now?"
+                        "sway" -> "Sway and the manjaro-sway settings are installed. Start the Sway desktop now?"
+                        else -> "The Linux base is ready."
+                    })
+                    .setPositiveButton(if (installed == "base") "OK" else "Start desktop") { _, _ ->
+                        if (installed != "base") Session.startSway(this)
                         finish()
                     }
                     .setNegativeButton("Close") { _, _ -> finish() }

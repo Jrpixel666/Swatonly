@@ -19,14 +19,40 @@ class ThemeRepository(private val context: Context) {
 
     private fun rootfsThemeDir(): File = File(App.instance.rootFs.dir, "usr/share/sway/themes")
 
+    /** Omarchy's themes in the install, then the user's own (~/.config/omarchy/themes). */
+    private fun omarchyThemeDirs(): List<File> = listOf(
+        File(App.instance.rootFs.dir, "usr/share/omarchy/themes"),
+        File(App.instance.rootFs.dir, "root/.config/omarchy/themes"),
+    )
+
     fun names(): List<String> {
         val set = sortedSetOf<String>()
         context.assets.list(ASSET_DIR)?.let { set.addAll(it) }
         rootfsThemeDir().listFiles()?.filter { File(it, "theme.conf").isFile }?.forEach { set.add(it.name) }
-        return set.toList()
+        return set.toList() + omarchyNames()
+    }
+
+    fun omarchyNames(): List<String> {
+        val set = sortedSetOf<String>()
+        context.assets.list(OMARCHY_ASSET_DIR)?.let { set.addAll(it) }
+        for (d in omarchyThemeDirs()) d.listFiles()?.filter { File(it, "colors.toml").isFile }?.forEach { set.add(it.name) }
+        return set.map { OmarchyTheme.PREFIX + it }
+    }
+
+    private fun omarchyToml(name: String): Pair<String, String>? {
+        val short = name.removePrefix(OmarchyTheme.PREFIX)
+        for (d in omarchyThemeDirs().reversed()) {
+            val f = File(d, "$short/colors.toml")
+            if (f.isFile) return f.readText() to "rootfs"
+        }
+        return asset("$OMARCHY_ASSET_DIR/$short/colors.toml")?.let { it to "bundled" }
     }
 
     fun load(name: String): SwayTheme? {
+        if (OmarchyTheme.isOmarchy(name)) {
+            val (toml, src) = omarchyToml(name) ?: return null
+            return OmarchyTheme.toSwayTheme(name, toml, src)
+        }
         val dir = File(rootfsThemeDir(), name)
         if (File(dir, "theme.conf").isFile) {
             return SwayTheme.parse(
@@ -45,6 +71,14 @@ class ThemeRepository(private val context: Context) {
 
     /** Raw file of a theme, for copying into ~/.config the way manjaro-sway-theme does. */
     fun rawFile(name: String, file: String): String? {
+        if (OmarchyTheme.isOmarchy(name)) {
+            val p = OmarchyTheme.parseToml(omarchyToml(name)?.first ?: return null)
+            return when (file) {
+                "theme.conf" -> OmarchyTheme.themeConf(name.removePrefix(OmarchyTheme.PREFIX), p)
+                "foot-theme.ini" -> OmarchyTheme.footIni(p)
+                else -> null
+            }
+        }
         val f = File(rootfsThemeDir(), "$name/$file")
         if (f.isFile) return f.readText()
         return asset("$ASSET_DIR/$name/$file")
@@ -70,5 +104,6 @@ class ThemeRepository(private val context: Context) {
 
     companion object {
         const val ASSET_DIR = "manjaro-sway/themes"
+        const val OMARCHY_ASSET_DIR = "omarchy/themes"
     }
 }

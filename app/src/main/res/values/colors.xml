@@ -6,4 +6,6 @@
     <color name="sway_text">#EEEEEE</color>
     <color name="sway_accent">#16A085</color>
     <color name="arch_green">#35BF5C</color>
+    <!-- the bar's Monero logo -->
+    <color name="monero_green">#2ECC71</color>
 </resources>

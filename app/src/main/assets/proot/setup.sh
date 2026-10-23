@@ -1,8 +1,9 @@
 #!/bin/bash
 # Swatonly: turns the extracted rootfs into Manjaro Sway, running under proot.
 #
-#   setup.sh sway   install sway + the manjaro-sway-settings payload
-#   setup.sh base   only prepare pacman and the launcher helpers
+#   setup.sh sway     install sway + the manjaro-sway-settings payload
+#   setup.sh omarchy  the same, then Omarchy on top (omarchy-setup.sh)
+#   setup.sh base     only prepare pacman and the launcher helpers
 #
 # Firmware and kernel modules are useless under proot; pacman.conf carries a
 # NoExtract rule (written by the launcher) so pacman never unpacks them.
@@ -97,9 +98,14 @@ if [ "$MODE" != "base" ]; then
     cp -f "$SW/sway-proot.conf" /root/.config/sway/config.d/00-swatonly-proot.conf
 fi
 
+if [ "$MODE" = "omarchy" ]; then
+    bash "$SW/omarchy-setup.sh" || die "Omarchy setup failed (run setup again from Settings > Linux)"
+fi
+
 step "Installing proot helpers"
 install -Dm755 "$SW/systemctl" /usr/local/bin/systemctl
 install -Dm755 "$SW/swatonly-run" /usr/local/bin/swatonly-run
+install -Dm755 "$SW/wm-msg" /usr/local/bin/wm-msg
 install -Dm644 "$SW/profile.sh" /etc/profile.d/swatonly.sh
 if command -v xkbcli >/dev/null; then
     xkbcli compile-keymap --layout us > "$SW/keymap.xkb.new" 2>/dev/null && mv -f "$SW/keymap.xkb.new" "$SW/keymap.xkb"

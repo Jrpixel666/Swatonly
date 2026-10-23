@@ -37,7 +37,9 @@ class SwayTheme(
     val iconTheme: String get() = vars["icon-theme"] ?: "Papirus-Dark"
 
     val displayName: String
-        get() = name.split('-').joinToString(" ") { it.replaceFirstChar(Char::uppercase) }
+        get() = name.removePrefix("omarchy:").split('-').joinToString(" ") { it.replaceFirstChar(Char::uppercase) }
+
+    val isOmarchy: Boolean get() = name.startsWith("omarchy:")
 
     /** The 16 ANSI colours + fg/bg for the built-in terminal, from foot-theme.ini. */
     fun terminalColors(): Map<String, Int> {

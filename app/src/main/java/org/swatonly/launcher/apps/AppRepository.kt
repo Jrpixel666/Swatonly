@@ -102,9 +102,11 @@ object AppRepository {
     fun actions(): List<AppEntry.Action> {
         val rootFs = App.instance.rootFs
         val out = ArrayList<AppEntry.Action>()
+        out += AppEntry.Action("menu", "System menu", if (rootFs.omarchyInstalled) "Omarchy menu" else "Manjaro Sway menu")
         out += AppEntry.Action("terminal", "Terminal", "Manjaro shell (built-in terminal)")
-        if (rootFs.swayInstalled) out += AppEntry.Action("sway", "Sway desktop", "The full Manjaro Sway session as one window")
+        if (rootFs.swayInstalled) out += AppEntry.Action("sway", "Desktop", if (rootFs.omarchyInstalled) "Manjaro Sway + Omarchy as one window" else "The full Manjaro Sway session as one window")
         if (!rootFs.swayInstalled) out += AppEntry.Action("install", "Install Manjaro Sway", "Download Manjaro and install sway under proot")
+        if (!rootFs.omarchyInstalled) out += AppEntry.Action("install-omarchy", "Install Omarchy", "Manjaro Sway plus Omarchy's menu, themes and tools")
         if (rootFs.isExtracted) {
             out += AppEntry.Action("update", "Update system", "pacman -Syu")
             out += AppEntry.Action("packages", "Install packages", "pacman -S in a terminal")
@@ -119,6 +121,10 @@ object AppRepository {
     fun launch(ctx: Context, e: AppEntry) {
         when (e) {
             is AppEntry.Android -> {
+                if (App.instance.prefs.androidSplitScreen && ctx is android.app.Activity && ctx.isInMultiWindowMode) {
+                    launchAdjacent(ctx, e)
+                    return
+                }
                 val la = ctx.getSystemService(LauncherApps::class.java)
                 val um = ctx.getSystemService(UserManager::class.java)
                 val user = um.getUserForSerialNumber(e.userSerial) ?: android.os.Process.myUserHandle()
@@ -129,6 +135,13 @@ object AppRepository {
             is AppEntry.Linux -> launchLinux(ctx, e)
             is AppEntry.Action -> runAction(ctx, e.action)
         }
+    }
+
+    /** Opens an Android app next to the one on screen (split screen), where the device allows it. */
+    fun launchAdjacent(ctx: Context, e: AppEntry.Android) {
+        val i = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER).setComponent(e.component)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
+        try { ctx.startActivity(i) } catch (_: Exception) { launch(ctx, e) }
     }
 
     private fun launchLinux(ctx: Context, e: AppEntry.Linux) {
@@ -156,6 +169,9 @@ object AppRepository {
             }
             "sway" -> Session.startSway(ctx)
             "install" -> InstallActivity.start(ctx, "sway")
+            "install-omarchy" -> InstallActivity.start(ctx, "omarchy")
+            "menu" -> ctx.startActivity(Intent(ctx, org.swatonly.launcher.ui.LauncherActivity::class.java)
+                .putExtra(org.swatonly.launcher.ui.LauncherActivity.EXTRA_MENU, true).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             "update" -> TerminalActivity.start(ctx, "System update", listOf("/bin/bash", "-lc", "pacman -Syu; echo; read -rp 'Press enter to close'"))
             "packages" -> TerminalActivity.start(ctx, "Packages", listOf("/bin/bash", "-lc",
                 "command -v pacseek >/dev/null && exec pacseek; read -rp 'Packages to install: ' p; pacman -S --needed \$p; read -rp 'Press enter to close'"))

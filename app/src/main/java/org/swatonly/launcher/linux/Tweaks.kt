@@ -173,7 +173,8 @@ object Tweaks {
     }
 
     /**
-     * Installs a theme into the Linux user config, as manjaro-sway-theme does:
+     * Installs a theme into the Linux user config, as manjaro-sway-theme does
+     * (blocking; call off the main thread):
      * the active theme becomes theme.conf, the other one waits as the
      * theme-toggle.sh alternative; foot gets the matching colours.
      */
@@ -193,6 +194,10 @@ object Tweaks {
         app.themes.rawFile(other, "theme.conf")?.let { File(defs, otherName).writeText(it) }
         val foot = File(rootFs.dir, "root/.config/foot").apply { mkdirs() }
         app.themes.rawFile(active, "foot-theme.ini")?.let { File(foot, "foot-theme.ini").writeText(it) }
+        // an Omarchy theme is also applied the Omarchy way (Hyprland, walker, btop, nvim...)
+        if (active.startsWith("omarchy:") && rootFs.omarchyInstalled) {
+            Proot.run(ctx, listOf("/bin/bash", "-lc", "omarchy-theme-set ${Proot.quote(active.removePrefix("omarchy:"))}"), timeoutSec = 180)
+        }
         Session.reloadSway(ctx)
     }
 }

@@ -1,0 +1,101 @@
+{
+  // Swatonly: the Manjaro Sway system menu, in the format of Omarchy's
+  // omarchy-menu.jsonc so the launcher draws both with the same menu.
+  // Dotted ids make the tree. Kind is inferred: action -> runs, otherwise submenu.
+  //   action    shell command, run inside the desktop session (sway or Hyprland)
+  //   terminal  true: run the action in the launcher's terminal instead
+  //   launcher  a launcher page instead of a command (settings:<page>, apps, setup, terminal)
+  //   when / checked / disabled   shell conditions, as in Omarchy
+  // Swatonly also reads ~/.config/swatonly/menu.jsonc, so you can add your own.
+
+  "apps": {"icon":"󰀻","label":"Apps","launcher":"apps"},
+  "windows": {"icon":"󱂬","label":"Windows"},
+  "appearance": {"icon":"󰏘","label":"Appearance"},
+  "trigger": {"icon":"󱓞","label":"Trigger"},
+  "setup": {"icon":"","label":"Setup"},
+  "install": {"icon":"󰉉","label":"Install"},
+  "remove": {"icon":"󰭌","label":"Remove"},
+  "update": {"icon":"","label":"Update"},
+  "learn": {"icon":"󰧑","label":"Learn"},
+  "system": {"icon":"","label":"System"},
+
+  // Windows: the sway tiling window manager
+  "windows.layout": {"icon":"󱂬","label":"Layout"},
+  "windows.layout.split-h": {"icon":"󰤼","label":"Split horizontally","action":"/opt/swatonly/wm-msg splith"},
+  "windows.layout.split-v": {"icon":"󰤻","label":"Split vertically","action":"/opt/swatonly/wm-msg splitv"},
+  "windows.layout.toggle": {"icon":"󰯌","label":"Toggle split","action":"/opt/swatonly/wm-msg layout toggle split"},
+  "windows.layout.tabbed": {"icon":"󰓩","label":"Tabbed","action":"/opt/swatonly/wm-msg layout tabbed"},
+  "windows.layout.stacking": {"icon":"󰓪","label":"Stacking","action":"/opt/swatonly/wm-msg layout stacking"},
+  "windows.floating": {"icon":"󰔶","label":"Toggle floating","action":"/opt/swatonly/wm-msg floating toggle"},
+  "windows.fullscreen": {"icon":"󰊓","label":"Toggle fullscreen","action":"/opt/swatonly/wm-msg fullscreen toggle"},
+  "windows.sticky": {"icon":"󰐃","label":"Toggle sticky","action":"/opt/swatonly/wm-msg sticky toggle"},
+  "windows.scratchpad": {"icon":"󰘔","label":"Scratchpad"},
+  "windows.scratchpad.send": {"icon":"󰘔","label":"Send to scratchpad","action":"/opt/swatonly/wm-msg move scratchpad"},
+  "windows.scratchpad.show": {"icon":"󰘔","label":"Show scratchpad","action":"/opt/swatonly/wm-msg scratchpad show"},
+  "windows.autotiling-on": {"icon":"󱂬","label":"Autotiling on","when":"command -v autotiling >/dev/null && ! pgrep -x autotiling >/dev/null","action":"autotiling"},
+  "windows.autotiling-off": {"icon":"󱂬","label":"Autotiling off","when":"pgrep -x autotiling >/dev/null","action":"pkill -x autotiling"},
+  "windows.close": {"icon":"󰅖","label":"Close window","action":"/opt/swatonly/wm-msg kill"},
+  "windows.tiling-buttons": {"icon":"󰕰","label":"Tiling buttons…","launcher":"settings:tiling"},
+
+  // Appearance
+  "appearance.theme": {"icon":"󰸌","label":"Theme","launcher":"settings:themes"},
+  "appearance.toggle": {"icon":"󰔎","label":"Day / night theme","action":"/usr/share/sway/scripts/theme-toggle.sh"},
+  "appearance.waybar": {"icon":"󰍜","label":"Restart waybar","action":"/usr/share/sway/scripts/waybar.sh"},
+  "appearance.background": {"icon":"","label":"Regenerate background","action":"/usr/share/sway/scripts/generate-bg.sh \"$(grep -m1 'accent-color' ~/.config/sway/definitions.d/theme.conf | awk '{print $3}')\""},
+  "appearance.scale": {"icon":"󰍉","label":"Scale"},
+  "appearance.scale.up": {"icon":"󰍉","label":"Larger","action":"/usr/share/sway/scripts/scale.sh up"},
+  "appearance.scale.down": {"icon":"󰍉","label":"Smaller","action":"/usr/share/sway/scripts/scale.sh down"},
+  "appearance.scale.default": {"icon":"󰍉","label":"Default","action":"/usr/share/sway/scripts/scale.sh default"},
+  "appearance.tweaks": {"icon":"","label":"Tweaks…","launcher":"settings:tweaks"},
+
+  // Trigger
+  "trigger.screenshot": {"icon":"","label":"Screenshot"},
+  "trigger.screenshot.screen": {"icon":"","label":"Whole screen","when":"command -v grimshot >/dev/null","action":"grimshot --notify save screen"},
+  "trigger.screenshot.window": {"icon":"","label":"Active window","when":"command -v grimshot >/dev/null","action":"grimshot --notify save active"},
+  "trigger.screenshot.area": {"icon":"","label":"Area","when":"command -v grimshot >/dev/null","action":"grimshot --notify save area"},
+  "trigger.record": {"icon":"","label":"Screen recording","when":"[ -x /usr/share/sway/scripts/recorder.sh ]","action":"/usr/share/sway/scripts/recorder.sh"},
+  "trigger.clipboard": {"icon":"󰅇","label":"Clipboard history","when":"command -v cliphist >/dev/null","action":"cliphist list | rofi -dmenu -p 'Copy' | cliphist decode | wl-copy"},
+  "trigger.emoji": {"icon":"","label":"Emoji","when":"command -v emoji-picker >/dev/null","action":"emoji-picker"},
+  "trigger.dnd": {"icon":"󰂛","label":"Do not disturb","when":"[ -x /usr/share/sway/scripts/dnd.sh ]","action":"/usr/share/sway/scripts/dnd.sh toggle"},
+  "trigger.idle": {"icon":"","label":"Keep awake","when":"command -v inhibit-idle >/dev/null","action":"inhibit-idle interactive"},
+  "trigger.termbin": {"icon":"","label":"Paste clipboard to termbin","when":"command -v termpaste >/dev/null","action":"termpaste"},
+
+  // Setup
+  "setup.keyboard": {"icon":"","label":"Keyboard layout","launcher":"settings:tweaks"},
+  "setup.mirrors": {"icon":"","label":"Rank pacman mirrors","terminal":true,"action":"manjaro-sway-mirrors || pacman-mirrors --fasttrack 5"},
+  "setup.audio": {"icon":"","label":"Audio mixer","terminal":true,"when":"command -v pulsemixer >/dev/null","action":"pulsemixer"},
+  "setup.bluetooth": {"icon":"","label":"Bluetooth","terminal":true,"when":"command -v bluetuith >/dev/null","action":"bluetuith"},
+  "setup.config": {"icon":"","label":"Config files…","launcher":"settings:configs"},
+  "setup.keybindings": {"icon":"","label":"Keybindings…","launcher":"settings:keybindings"},
+  "setup.launcher": {"icon":"","label":"Launcher settings…","launcher":"settings:main"},
+  "setup.setup-choice": {"icon":"󰑓","label":"Launcher only / launcher + Omarchy","launcher":"setup"},
+
+  // Install / remove
+  "install.package": {"icon":"󰣇","label":"Package (pacseek)","terminal":true,"action":"command -v pacseek >/dev/null && exec pacseek; read -rp 'Packages to install: ' p; pacman -S --needed $p"},
+  "install.aur": {"icon":"󰣇","label":"AUR package (yay)","terminal":true,"action":"command -v yay >/dev/null || pacman -S --needed --noconfirm yay; read -rp 'AUR packages: ' p; yay -S $p"},
+  "install.theme-packages": {"icon":"󰸌","label":"Theme packages…","launcher":"settings:themes"},
+  "install.omarchy": {"icon":"","label":"Omarchy","when":"[ ! -d /usr/share/omarchy ]","launcher":"install:omarchy"},
+  "remove.package": {"icon":"󰭌","label":"Package","terminal":true,"action":"read -rp 'Packages to remove: ' p; pacman -Rns $p"},
+  "remove.orphans": {"icon":"󰭌","label":"Orphaned packages","terminal":true,"action":"o=$(pacman -Qdtq); [ -n \"$o\" ] && pacman -Rns $o || echo 'no orphans'"},
+  "remove.cache": {"icon":"󰃢","label":"Package cache","terminal":true,"action":"paccache -rk1 2>/dev/null || pacman -Sc"},
+
+  // Update
+  "update.system": {"icon":"","label":"System (pacman -Syu)","terminal":true,"action":"pacman -Syu"},
+  "update.check": {"icon":"","label":"Check for updates","terminal":true,"action":"checkupdates 2>/dev/null || pacman -Qu"},
+  "update.omarchy": {"icon":"","label":"Omarchy","when":"[ -d /usr/share/omarchy/.git ]","terminal":true,"action":"bash /opt/swatonly/omarchy-setup.sh"},
+  "update.reload": {"icon":"󰑓","label":"Reload window manager","action":"/opt/swatonly/wm-msg reload"},
+
+  // Learn
+  "learn.help": {"icon":"","label":"Keybindings","launcher":"settings:keybindings"},
+  "learn.manjaro-sway": {"icon":"","label":"Manjaro Sway","action":"xdg-open https://github.com/manjaro-sway/manjaro-sway"},
+  "learn.sway": {"icon":"","label":"Sway","terminal":true,"action":"man 5 sway"},
+  "learn.arch": {"icon":"󰣇","label":"Arch wiki","action":"xdg-open https://wiki.archlinux.org"},
+
+  // System
+  "system.terminal": {"icon":"","label":"Terminal","launcher":"terminal"},
+  "system.monitor": {"icon":"","label":"Task manager","terminal":true,"when":"command -v btop >/dev/null","action":"btop"},
+  "system.info": {"icon":"","label":"System info","terminal":true,"action":"(fastfetch || neofetch || uname -a) 2>/dev/null; echo; df -h /"},
+  "system.reload": {"icon":"󰑓","label":"Reload sway","action":"/opt/swatonly/wm-msg reload"},
+  "system.logout": {"icon":"󰍃","label":"Exit desktop","action":"/opt/swatonly/wm-msg exit"},
+  "system.stop": {"icon":"󰐥","label":"Stop Linux","launcher":"stop"},
+}

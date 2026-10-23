@@ -70,7 +70,7 @@ class LinuxService : Service() {
         fun action(a: String, req: Int) = PendingIntent.getService(this, req, Intent(this, LinuxService::class.java).setAction(a), PendingIntent.FLAG_IMMUTABLE)
         val windows = WaylandServer.instance?.windowCount() ?: 0
         val text = buildString {
-            append(if (Session.swayRunning) "Sway running" else "Compositor ready")
+            append(if (Session.swayRunning) "${App.instance.rootFs.runningWm?.replaceFirstChar(Char::uppercase) ?: "Desktop"} running" else "Compositor ready")
             append(" · $windows window")
             if (windows != 1) append('s')
             append(" · ${Session.processCount()} process")
@@ -79,7 +79,7 @@ class LinuxService : Service() {
         }
         return Notification.Builder(this, App.CHANNEL_SESSION)
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle("Manjaro Sway")
+            .setContentTitle(if (App.instance.rootFs.omarchyInstalled) "Manjaro Sway + Omarchy" else "Manjaro Sway")
             .setContentText(text)
             .setContentIntent(open)
             .setOngoing(true)
@@ -173,10 +173,21 @@ object Session {
         LinuxService.start(ctx)
         startBackground(ctx)
         Tweaks.write(ctx)
+        val rootFs = App.instance.rootFs
+        val wm = if (App.instance.prefs.desktopWm == "hyprland" && rootFs.hyprlandInstalled) "hyprland" else "sway"
+        java.io.File(rootFs.runDir, "swatonly-wm").delete()
         sway = Proot.spawn(ctx, "sway", listOf("/bin/bash", "/opt/swatonly/sway-session.sh"),
-            mapOf("XDG_CURRENT_DESKTOP" to "sway:wlroots"))
+            mapOf("XDG_CURRENT_DESKTOP" to "sway:wlroots", "SWATONLY_WM" to wm))
         sway?.let { processes += "sway" to it }
         LinuxService.running?.updateNotification()
+    }
+
+    /** Runs a shell command inside the desktop session (started if needed), like a keybinding would. */
+    @Synchronized
+    fun runInDesktop(ctx: Context, name: String, shellCommand: String) {
+        startSway(ctx)
+        val p = Proot.spawn(ctx, logName(name), listOf("/bin/bash", "-lc", "/opt/swatonly/wm-msg exec ${Proot.quote(shellCommand)}"))
+        processes += name to p
     }
 
     @Synchronized
@@ -185,11 +196,11 @@ object Session {
         sway = null
     }
 
-    /** `swaymsg reload` if sway runs, so tweaks and themes apply live. */
+    /** Reloads sway (or Hyprland) if it runs, so tweaks and themes apply live. */
     fun reloadSway(ctx: Context) {
         if (!swayRunning) return
         Thread {
-            Proot.run(ctx, listOf("/bin/bash", "-lc", "SWAYSOCK=\$(ls ${Proot.GUEST_RUNTIME_DIR}/sway-ipc.*.sock 2>/dev/null | head -1) swaymsg reload"), timeoutSec = 20)
+            Proot.run(ctx, listOf("/opt/swatonly/wm-msg", "reload"), timeoutSec = 20)
         }.start()
     }
 

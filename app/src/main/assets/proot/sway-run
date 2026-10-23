@@ -1,26 +1,6 @@
 #!/bin/bash
-# Swatonly: run a command inside the running sway session, so sway tiles its
-# windows (instead of each window filling the launcher's screen).
-# Usage: sway-run <shell command>
-# Waits up to 60 s for sway to come up when it was just started.
-cmd="$*"
-[ -n "$cmd" ] || exit 2
-runtime="${XDG_RUNTIME_DIR:-/run/user/0}"
-
-find_sock() {
-    local s pid
-    for s in $(ls -t "$runtime"/sway-ipc.*.sock 2>/dev/null); do
-        pid=${s##*/sway-ipc.}; pid=${pid#*.}; pid=${pid%.sock}
-        kill -0 "$pid" 2>/dev/null && { echo "$s"; return 0; }
-    done
-    return 1
-}
-
-for _ in $(seq 1 120); do
-    if sock=$(find_sock); then
-        exec swaymsg -s "$sock" exec "$cmd"
-    fi
-    sleep 0.5
-done
-echo "sway-run: no running sway session found" >&2
-exit 1
+# Swatonly: run a command inside the running desktop session (sway or
+# Hyprland), so the tiling window manager arranges its windows.
+# Usage: sway-run <shell command>   (kept for older callers; see wm-msg)
+[ $# -gt 0 ] || exit 2
+exec /opt/swatonly/wm-msg exec "$*"

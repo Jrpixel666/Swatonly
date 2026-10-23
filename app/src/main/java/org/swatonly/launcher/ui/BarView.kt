@@ -18,14 +18,17 @@ import org.swatonly.launcher.R
 import org.swatonly.launcher.apps.AppEntry
 import org.swatonly.launcher.apps.AppRepository
 import org.swatonly.launcher.apps.IconLoader
+import org.swatonly.launcher.linux.Session
+import org.swatonly.launcher.linux.Tiling
 import org.swatonly.launcher.wayland.Window
 import org.swatonly.launcher.wayland.WaylandServer
 import java.util.Date
 
 /**
- * The bottom bar, styled like manjaro-sway's waybar: the green Arch logo on
- * the left opens "My apps", pinned apps and open Linux windows in the middle,
- * clock and battery modules, then "+" (add apps to the bar) and settings.
+ * The bottom bar, styled like manjaro-sway's waybar: the green Monero logo on
+ * the left opens "My apps" (long press: the system menu), pinned apps,
+ * workspaces and open Linux windows in the middle, clock and battery modules,
+ * then "+" (add apps to the bar) and settings.
  */
 @SuppressLint("ViewConstructor")
 class BarView(context: Context, private val callbacks: Callbacks) : LinearLayout(context) {
@@ -64,8 +67,8 @@ class BarView(context: Context, private val callbacks: Callbacks) : LinearLayout
 
         // left: the logo (always green, as asked) -> My apps
         val logo = ImageView(context).apply {
-            setImageResource(R.drawable.ic_arch)
-            setColorFilter(context.getColor(R.color.arch_green))
+            setImageResource(R.drawable.ic_monero)
+            setColorFilter(context.getColor(R.color.monero_green))
             val p = Ui.dp(context, 7)
             setPadding(p + Ui.dp(context, 3), p, p + Ui.dp(context, 3), p)
             background = Ui.pressable(context)
@@ -127,6 +130,10 @@ class BarView(context: Context, private val callbacks: Callbacks) : LinearLayout
             val e = AppRepository.find(key) ?: continue
             items.addView(appButton(e))
         }
+        if (Session.swayRunning && prefs.workspacesOnBar > 0) {
+            if (items.childCount > 0) items.addView(separator())
+            for (n in 1..prefs.workspacesOnBar) items.addView(workspaceButton(n))
+        }
         if (prefs.showWindowsOnBar) {
             val windows = WaylandServer.instance?.windowList().orEmpty()
             if (windows.isNotEmpty() && items.childCount > 0) items.addView(separator())
@@ -147,6 +154,18 @@ class BarView(context: Context, private val callbacks: Callbacks) : LinearLayout
         return iv
     }
 
+    /** Like waybar's sway/workspaces: switches the desktop's workspace and shows it. */
+    private fun workspaceButton(n: Int): View = Ui.text(context, "$n", 13f, theme.text, bold = true).apply {
+        gravity = Gravity.CENTER
+        background = Ui.pressable(context)
+        contentDescription = "Workspace $n"
+        setOnClickListener {
+            Tiling.send(context, "workspace number $n")
+            WaylandServer.instance?.focusWindowByAppId("sway", context)
+        }
+        layoutParams = LayoutParams(Ui.dp(context, 30), ViewGroup.LayoutParams.MATCH_PARENT)
+    }
+
     private fun windowButton(w: Window): View {
         val box = LinearLayout(context)
         box.orientation = HORIZONTAL
@@ -164,7 +183,7 @@ class BarView(context: Context, private val callbacks: Callbacks) : LinearLayout
         val size = (iconPx * 0.8f).toInt()
         if (entry != null) IconLoader.load(context, entry, size, iv) else iv.setImageBitmap(IconLoader.letterBitmap(if (w.isSway) "S" else w.title, size))
         box.addView(iv, LayoutParams(size, size))
-        val label = Ui.text(context, (if (w.isSway) "sway" else w.title).take(14), 12f).apply { setPadding(Ui.dp(context, 6), 0, 0, 0); maxLines = 1 }
+        val label = Ui.text(context, (if (w.isSway) App.instance.rootFs.runningWm ?: "sway" else w.title).take(14), 12f).apply { setPadding(Ui.dp(context, 6), 0, 0, 0); maxLines = 1 }
         box.addView(label)
         box.setOnClickListener { callbacks.onWindow(w) }
         box.layoutParams = LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT).apply { setMargins(Ui.dp(context, 2), 0, Ui.dp(context, 2), 0) }

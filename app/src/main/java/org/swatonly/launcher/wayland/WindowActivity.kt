@@ -25,6 +25,8 @@ import org.swatonly.launcher.App
 import org.swatonly.launcher.R
 import org.swatonly.launcher.apps.AppRepository
 import org.swatonly.launcher.apps.IconLoader
+import org.swatonly.launcher.linux.Tiling
+import org.swatonly.launcher.ui.SystemMenu
 import org.swatonly.launcher.ui.Ui
 
 /**
@@ -36,6 +38,8 @@ class WindowActivity : Activity(), Window.Host {
     private var window: Window? = null
     private lateinit var view: WlView
     private var extraKeys: View? = null
+    private var tilingRow: View? = null
+    private var tilingShown = true
     private var closedByClient = false
 
     override val holder: SurfaceHolder get() = view.holder
@@ -62,11 +66,17 @@ class WindowActivity : Activity(), Window.Host {
         root.setBackgroundColor(Color.BLACK)
         view = WlView(this, server, w)
         root.addView(view, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        val bottom = LinearLayout(this)
+        bottom.orientation = LinearLayout.VERTICAL
+        val tiling = buildTilingButtons()
+        tilingRow = tiling
+        bottom.addView(tiling, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         val keys = buildExtraKeys()
         extraKeys = keys
-        val lp = FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM)
-        root.addView(keys, lp)
+        bottom.addView(keys, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        root.addView(bottom, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM))
         keys.visibility = if (App.instance.prefs.showExtraKeys) View.VISIBLE else View.GONE
+        tiling.visibility = if (tilingVisible()) View.VISIBLE else View.GONE
         setContentView(root)
 
         view.holder.addCallback(object : SurfaceHolder.Callback {
@@ -77,6 +87,45 @@ class WindowActivity : Activity(), Window.Host {
         w.attach(this)
         onMetadataChanged()
         view.requestFocus()
+    }
+
+    private fun tilingVisible(): Boolean = window?.isSway == true && App.instance.prefs.showTilingButtons && tilingShown
+
+    /** Buttons for the tiling window manager (sway or Hyprland), chosen in Settings › Tiling buttons. */
+    private fun buildTilingButtons(): View {
+        val theme = App.instance.themes.current()
+        val scroll = HorizontalScrollView(this)
+        scroll.isHorizontalScrollBarEnabled = false
+        scroll.setBackgroundColor((theme.surface and 0x00FFFFFF) or 0xE6000000.toInt())
+        val row = LinearLayout(this)
+        row.orientation = LinearLayout.HORIZONTAL
+        scroll.addView(row)
+        for (id in App.instance.prefs.tilingButtons) {
+            val b = Tiling.byId(id) ?: continue
+            val t = TextView(this)
+            t.text = b.label
+            t.setTextColor(if (id == "menu") getColor(R.color.monero_green) else theme.accent)
+            t.typeface = android.graphics.Typeface.create(android.graphics.Typeface.MONOSPACE, android.graphics.Typeface.BOLD)
+            t.textSize = 15f
+            t.gravity = Gravity.CENTER
+            t.minWidth = Ui.dp(this, 40)
+            val pad = Ui.dp(this, 10)
+            t.setPadding(pad, Ui.dp(this, 8), pad, Ui.dp(this, 8))
+            t.background = Ui.pressable(this)
+            t.contentDescription = b.title
+            t.setOnClickListener {
+                when {
+                    b.command == "menu:" -> SystemMenu(this) {
+                        startActivity(Intent(this, org.swatonly.launcher.ui.LauncherActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                    }.show()
+                    b.command == "launcher:" -> Tiling.openWmLauncher(this)
+                    else -> Tiling.send(this, b.command)
+                }
+            }
+            t.setOnLongClickListener { android.widget.Toast.makeText(this, b.title, android.widget.Toast.LENGTH_SHORT).show(); true }
+            row.addView(t)
+        }
+        return scroll
     }
 
     private fun buildExtraKeys(): View {
@@ -100,6 +149,10 @@ class WindowActivity : Activity(), Window.Host {
             row.addView(t)
         }
         key("⌨") { toggleSoftKeyboard() }
+        if (window?.isSway == true && App.instance.prefs.showTilingButtons) key("▦") {
+            tilingShown = !tilingShown
+            tilingRow?.visibility = if (tilingVisible()) View.VISIBLE else View.GONE
+        }
         key("ESC") { view.tapKey(Keys.KEY_ESC) }
         key("TAB") { view.tapKey(Keys.KEY_TAB) }
         for ((label, mod) in listOf("CTRL" to Keys.KEY_LEFTCTRL, "ALT" to Keys.KEY_LEFTALT, "SUPER" to Keys.KEY_LEFTMETA, "SHIFT" to Keys.KEY_LEFTSHIFT)) {
@@ -170,6 +223,7 @@ class WindowActivity : Activity(), Window.Host {
             } else 0
         }
         extraKeys?.visibility = if (!fs && App.instance.prefs.showExtraKeys) View.VISIBLE else View.GONE
+        tilingRow?.visibility = if (!fs && tilingVisible()) View.VISIBLE else View.GONE
     }
 
     override fun onWindowClosed() {

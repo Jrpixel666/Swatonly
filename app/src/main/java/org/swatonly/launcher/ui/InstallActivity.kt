@@ -48,14 +48,16 @@ class InstallActivity : Activity(), Installer.Listener {
         val root = Ui.vertical(this)
         root.setBackgroundColor(theme.background)
         root.setPadding(Ui.dp(this, 20), Ui.dp(this, 24), Ui.dp(this, 20), Ui.dp(this, 20))
-        root.addView(Ui.text(this, if (mode == "sway") "Launcher + Sway" else "Manjaro base", 22f, theme.accent, bold = true))
+        val desktop = mode == "sway" || mode == "omarchy"
+        root.addView(Ui.text(this, when (mode) { "omarchy" -> "Launcher + Omarchy"; "sway" -> "Launcher + Sway"; else -> "Manjaro base" }, 22f, theme.accent, bold = true))
         val src = rootFs.defaultSource()
         val desc = buildString {
             append("Installs Manjaro into the app's private storage and runs it with proot: no root needed.\n\n")
             append("• rootfs: ${if (app.prefs.rootfsUrl.isNotBlank()) app.prefs.rootfsUrl else src.label}\n")
-            if (mode == "sway") append("• then sway, waybar, foot, rofi, mako… and manjaro-sway-settings from release ${BuildConfig.MANJARO_SWAY_TAG}\n")
+            if (desktop) append("• then sway, waybar, foot, rofi, mako… and manjaro-sway-settings from release ${BuildConfig.MANJARO_SWAY_TAG}\n")
+            if (mode == "omarchy") append("• then Omarchy (basecamp/omarchy ${omarchyRef().take(7)}): its commands, menu, themes and configs, plus the Omarchy packages Manjaro has for this CPU. Bootloader, plymouth, sddm and hardware services are skipped: they cannot work under proot\n")
             append("• firmware and kernel modules are not unpacked (useless under proot)\n")
-            append("• needs about ${if (mode == "sway") "2" else "1"} GB of free space and a good connection\n")
+            append("• needs about ${when (mode) { "omarchy" -> "4"; "sway" -> "2"; else -> "1" }} GB of free space and a good connection\n")
             if (rootFs.isExtracted) append("\nA rootfs is already present: setup runs again on top of it (repair).")
         }
         root.addView(Ui.text(this, desc, 14f).apply { setPadding(0, Ui.dp(this@InstallActivity, 12), 0, Ui.dp(this@InstallActivity, 12)) })
@@ -110,6 +112,8 @@ class InstallActivity : Activity(), Installer.Listener {
             requestPermissions(arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE), 1)
         }
     }
+
+    private fun omarchyRef(): String = try { assets.open("omarchy/REF").bufferedReader().use { it.readText().trim() } } catch (_: Exception) { "master" }
 
     private fun begin(fresh: Boolean) {
         val inst = Installer(this, this)

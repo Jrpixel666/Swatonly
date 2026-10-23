@@ -16,7 +16,7 @@ class Prefs(context: Context) {
         get() = bool("ask_setup_every_start", true)
         set(v) = sp.edit().putBoolean("ask_setup_every_start", v).apply()
 
-    /** "launcher" or "sway" — what the user picked last time. */
+    /** "launcher", "omarchy" or "sway": what the user picked last time. */
     var lastSetupChoice: String
         get() = str("last_setup_choice", "")
         set(v) = sp.edit().putString("last_setup_choice", v).apply()
@@ -115,6 +115,37 @@ class Prefs(context: Context) {
     var showExtraKeys: Boolean
         get() = bool("show_extra_keys", true)
         set(v) = sp.edit().putBoolean("show_extra_keys", v).apply()
+
+    // --- window manager / tiling ---
+    /** "sway" or "hyprland" (Omarchy's; falls back to sway when it cannot start). */
+    var desktopWm: String
+        get() = str("desktop_wm", "sway")
+        set(v) = sp.edit().putString("desktop_wm", v).apply()
+    /** The tiling button row over the desktop window. */
+    var showTilingButtons: Boolean
+        get() = bool("show_tiling_buttons", true)
+        set(v) = sp.edit().putBoolean("show_tiling_buttons", v).apply()
+    /** Tiling buttons, as [org.swatonly.launcher.linux.Tiling] ids, in order. */
+    var tilingButtons: List<String>
+        get() = sp.getString("tiling_buttons", null)?.split(',')?.filter { it.isNotBlank() } ?: org.swatonly.launcher.linux.Tiling.DEFAULT
+        set(v) = sp.edit().putString("tiling_buttons", v.joinToString(",")).apply()
+    /** Workspace buttons on the home bar while the desktop runs. */
+    var workspacesOnBar: Int
+        get() = int("workspaces_on_bar", 5)
+        set(v) = sp.edit().putInt("workspaces_on_bar", v).apply()
+    /** Android apps opened from the bar go side by side (split screen) when possible. */
+    var androidSplitScreen: Boolean
+        get() = bool("android_split", false)
+        set(v) = sp.edit().putBoolean("android_split", v).apply()
+
+    // --- system menu ---
+    /** "auto" (Omarchy when installed), "omarchy" or "manjaro-sway" */
+    var menuSource: String
+        get() = str("menu_source", "auto")
+        set(v) = sp.edit().putString("menu_source", v).apply()
+    var menuShowIcons: Boolean
+        get() = bool("menu_icons", true)
+        set(v) = sp.edit().putBoolean("menu_icons", v).apply()
 
     // --- sway tweaks (written into the rootfs) ---
     fun tweak(key: String, def: String): String = str("tweak_$key", def)

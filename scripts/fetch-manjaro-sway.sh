@@ -6,7 +6,7 @@
 #   themes/          sway themes (theme.conf, foot-theme.ini, packages)
 #   templates/       background template used for the launcher wallpaper
 #   wallpapers/      manjaro-sway-wallpapers (scalable svg)
-#   sway/            /etc/sway definitions + autostart (tweak discovery)
+#   sway/            /etc/sway definitions + autostart (tweak discovery), modes (keybindings)
 #   Packages-Desktop the edition's package list (what "Launcher + Sway" installs)
 #
 # Usage: scripts/fetch-manjaro-sway.sh [tag]   (or MANJARO_SWAY_SRC=/path/to/checkout)
@@ -46,6 +46,7 @@ cp -a "$SETTINGS/usr/share/sway/themes/." "$OUT/themes/"
 cp "$SETTINGS/usr/share/sway/templates/manjarosway-scalable.svg" "$OUT/templates/"
 cp "$SRC/packages/manjaro-sway-wallpapers/static/"*.svg "$OUT/wallpapers/" 2>/dev/null || true
 cp "$SETTINGS/etc/sway/definitions" "$SETTINGS/etc/sway/autostart" "$OUT/sway/"
+cp -r "$SETTINGS/etc/sway/modes" "$OUT/sway/modes"
 cp "$SRC/iso-profiles/community/sway/Packages-Desktop" "$OUT/Packages-Desktop"
 cp "$SRC/LICENSE" "$OUT/LICENSE"
 echo "$TAG" > "$OUT/TAG"

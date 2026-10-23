@@ -47,7 +47,8 @@ class Window(val server: WaylandServer, val toplevel: XdgToplevelRes) {
     val title: String get() = toplevel.title.ifEmpty { toplevel.appId.ifEmpty { "Linux window" } }
     val appId: String get() = toplevel.appId
     val fullscreen: Boolean get() = toplevel.fullscreen
-    val isSway: Boolean get() = appId == "wlroots" || appId.startsWith("sway")
+    /** The nested desktop itself: sway (wlroots) or Hyprland (aquamarine). */
+    val isSway: Boolean get() = appId == "wlroots" || appId.startsWith("sway") || appId == "aquamarine" || appId.startsWith("hyprland", ignoreCase = true)
 
     // ---- size & configure -------------------------------------------------
 

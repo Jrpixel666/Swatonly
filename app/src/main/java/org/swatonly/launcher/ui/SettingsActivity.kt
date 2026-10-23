@@ -20,6 +20,7 @@ import org.swatonly.launcher.BuildConfig
 import org.swatonly.launcher.R
 import org.swatonly.launcher.apps.AppRepository
 import org.swatonly.launcher.apps.IconLoader
+import org.swatonly.launcher.linux.Keybindings
 import org.swatonly.launcher.linux.LinuxService
 import org.swatonly.launcher.linux.PacmanConf
 import org.swatonly.launcher.linux.Session
@@ -55,8 +56,8 @@ class SettingsActivity : Activity() {
         header.setPadding(Ui.dp(this, 8), Ui.dp(this, 10), Ui.dp(this, 16), Ui.dp(this, 10))
         header.setBackgroundColor(theme.surface)
         val back = ImageView(this).apply {
-            setImageResource(R.drawable.ic_arch)
-            setColorFilter(getColor(R.color.arch_green))
+            setImageResource(R.drawable.ic_monero)
+            setColorFilter(getColor(R.color.monero_green))
             val p = Ui.dp(this@SettingsActivity, 8)
             setPadding(p, p, p, p)
             background = Ui.pressable(this@SettingsActivity)
@@ -106,6 +107,11 @@ class SettingsActivity : Activity() {
             "windows" -> windowsPage()
             "linux" -> linuxPage()
             "about" -> aboutPage()
+            "omarchy" -> omarchyPage()
+            "tiling" -> tilingPage()
+            "menu" -> menuPage()
+            "configs" -> configsPage()
+            "keybindings" -> keybindingsPage()
         }
     }
 
@@ -164,8 +170,18 @@ class SettingsActivity : Activity() {
         title.text = getString(R.string.settings)
         val rootFs = app.rootFs
         heading("Manjaro Sway")
-        nav("Themes", "day ${prefs.dayTheme} · night ${prefs.nightTheme} · from ${if (rootFs.swayInstalled) "the install" else "manjaro-sway ${BuildConfig.MANJARO_SWAY_TAG}"}", "themes")
+        nav("Themes", "day ${themeLabel(prefs.dayTheme)} · night ${themeLabel(prefs.nightTheme)} · manjaro-sway and Omarchy themes", "themes")
         nav("Tweaks", "session daemons, theme application, window manager and sway variables found in the install", "tweaks")
+        heading("Omarchy")
+        nav("Omarchy", when {
+            rootFs.omarchyInstalled -> "installed · menu, themes, window manager"
+            else -> "not installed · add it with Launcher + Omarchy"
+        }, "omarchy")
+        nav("System menu", "the install's own menu (${if (rootFs.omarchyInstalled) "Omarchy" else "Manjaro Sway"}) · source, icons, your entries", "menu")
+        heading("Tiling")
+        nav("Tiling buttons", "${prefs.tilingButtons.size} buttons over the desktop · workspaces on the bar · ${prefs.desktopWm}", "tiling")
+        nav("Keybindings", "every shortcut of the window manager", "keybindings")
+        nav("Config files", "edit sway, waybar, foot, mako, rofi, Hyprland, Omarchy, pacman…", "configs")
         heading("Launcher")
         nav("Bar & home screen", "bar icons, clock, wallpaper, menu", "launcher")
         nav("Linux windows", "apps tiled inside sway, scale, input", "windows")
@@ -177,7 +193,7 @@ class SettingsActivity : Activity() {
             else -> "not installed (launcher only)"
         }, "linux")
         item("Default home app", "use Swatonly when pressing Home") { startActivity(Intent(Settings.ACTION_HOME_SETTINGS)) }
-        item("Run setup choice", "launcher only / launcher + sway") {
+        item("Run setup choice", "launcher only / launcher + Omarchy") {
             finish()
             startActivity(Intent(this, LauncherActivity::class.java)
                 .putExtra(LauncherActivity.EXTRA_SETUP_CHOICE, true)
@@ -195,14 +211,23 @@ class SettingsActivity : Activity() {
         }
         heading("Themes from the manjaro install")
         note(if (app.rootFs.swayInstalled) "Read from /usr/share/sway/themes in the Manjaro install." else "Bundled from manjaro-sway ${BuildConfig.MANJARO_SWAY_TAG} (install Sway to read them from the system).")
+        var omarchyHeading = false
         for (name in app.themes.names()) {
             val t = app.themes.load(name) ?: continue
+            if (t.isOmarchy && !omarchyHeading) {
+                omarchyHeading = true
+                heading("Omarchy themes")
+                note(if (app.rootFs.omarchyInstalled) "Read from /usr/share/omarchy/themes and ~/.config/omarchy/themes. Picking one also runs omarchy-theme-set."
+                else "Bundled from Omarchy; their colours are turned into sway and foot themes.")
+            }
             val marks = buildString {
                 if (name == prefs.dayTheme) append("☀ day ")
                 if (name == prefs.nightTheme) append("☾ night")
             }.trim()
-            val row = Ui.row(this, t.displayName, "${t.gtkTheme.ifEmpty { "gtk default" }} · ${t.iconTheme}", marks.ifEmpty { null }) {
-                Ui.choose(this, t.displayName, listOf("day" to "Use as day theme", "night" to "Use as night theme", "packages" to "Install its packages (${t.packages.size})"), null) { what ->
+            val row = Ui.row(this, t.displayName, if (t.isOmarchy) "omarchy · ${if (t.isDark) "dark" else "light"}" else "${t.gtkTheme.ifEmpty { "gtk default" }} · ${t.iconTheme}", marks.ifEmpty { null }) {
+                val actions = mutableListOf("day" to "Use as day theme", "night" to "Use as night theme")
+                if (t.packages.isNotEmpty()) actions += "packages" to "Install its packages (${t.packages.size})"
+                Ui.choose(this, t.displayName, actions, null) { what ->
                     when (what) {
                         "day" -> { prefs.dayTheme = name; themeChanged() }
                         "night" -> { prefs.nightTheme = name; themeChanged() }
@@ -220,6 +245,8 @@ class SettingsActivity : Activity() {
             if (it) bg({ Tweaks.applyTheme(this) })
         }
     }
+
+    private fun themeLabel(name: String) = name.removePrefix("omarchy:") + if (name.startsWith("omarchy:")) " (omarchy)" else ""
 
     private fun themeChanged() {
         IconLoader.clear()
@@ -302,8 +329,8 @@ class SettingsActivity : Activity() {
         switch("CLI / TUI apps", "Terminal=true entries (btop, pulsemixer, bluetuith, pacseek…)", { prefs.showCliApps }) { prefs.showCliApps = it; AppRepository.reload(this) }
         item("Reload app list", null) { IconLoader.clear(); AppRepository.reload(this); Toast.makeText(this, "Reloading…", Toast.LENGTH_SHORT).show() }
         heading("Start")
-        switch("Ask launcher only / launcher + sway on every start", null, { prefs.askSetupEveryStart }) { prefs.askSetupEveryStart = it }
-        switch("Start sway with \"Launcher + Sway\"", "otherwise only the compositor starts", { prefs.autostartSway }) { prefs.autostartSway = it }
+        switch("Ask launcher only / launcher + Omarchy on every start", "the first-boot choice, shown each time the launcher starts", { prefs.askSetupEveryStart }) { prefs.askSetupEveryStart = it }
+        switch("Start the desktop with \"Launcher + Omarchy\"", "otherwise only the compositor starts", { prefs.autostartSway }) { prefs.autostartSway = it }
     }
 
     private fun windowsPage() {
@@ -347,7 +374,7 @@ class SettingsActivity : Activity() {
 
         heading("Session")
         if (rootFs.swayInstalled) {
-            item(if (Session.swayRunning) "Show Sway desktop" else "Start Sway desktop", "sway nested in the launcher's compositor") { Session.startSway(this) }
+            item(if (Session.swayRunning) "Show desktop" else "Start desktop", "${rootFs.runningWm ?: prefs.desktopWm} nested in the launcher's compositor") { Session.startSway(this) }
             if (Session.swayRunning) item("Stop sway", null) { Session.stopSway(); refresh() }
         }
         if (rootFs.isExtracted) {
@@ -358,7 +385,8 @@ class SettingsActivity : Activity() {
         item("Stop all Linux programs", null) { Session.stopAll(); LinuxService.running?.stopSelf(); refresh() }
 
         heading("Install")
-        if (!rootFs.swayInstalled) item("Install Manjaro Sway", "launcher + sway") { InstallActivity.start(this, "sway") }
+        if (!rootFs.omarchyInstalled) item("Install Omarchy", "launcher + Manjaro Sway + Omarchy") { InstallActivity.start(this, "omarchy") }
+        if (!rootFs.swayInstalled) item("Install Manjaro Sway only", "launcher + sway, without Omarchy") { InstallActivity.start(this, "sway") }
         if (rootFs.installedMode == null && !rootFs.isExtracted) item("Install Manjaro base only", "Linux apps and CLI tools, no sway") { InstallActivity.start(this, "base") }
         if (rootFs.isExtracted) item("Repair / re-run setup", "runs setup.sh ${rootFs.installedMode ?: "sway"} again") {
             InstallActivity.start(this, rootFs.installedMode ?: "sway")
@@ -377,6 +405,11 @@ class SettingsActivity : Activity() {
             Ui.prompt(this, "Extra binds", prefs.extraBinds, "/storage/emulated/0/Download:/root/Downloads", multiLine = true) { prefs.extraBinds = it; refresh() }
         }
         switch("Emulate memfd with ashmem", "only if Linux apps fail to create shared memory", { prefs.ashmemMemfd }) { prefs.ashmemMemfd = it }
+
+        heading("Configuration")
+        item("Edit pacman.conf", "/etc/pacman.conf (NoExtract keeps firmware and modules out)") { editFile("/etc/pacman.conf") }
+        item("Edit mirror list", "/etc/pacman.d/mirrorlist") { editFile("/etc/pacman.d/mirrorlist") }
+        item("All config files", null) { open("configs") }
 
         heading("Logs")
         val logs = rootFs.logDir.listFiles()?.sortedByDescending { it.lastModified() }.orEmpty()
@@ -407,8 +440,8 @@ class SettingsActivity : Activity() {
     private fun aboutPage() {
         title.text = "About"
         val logo = ImageView(this).apply {
-            setImageResource(R.drawable.ic_arch)
-            setColorFilter(getColor(R.color.arch_green))
+            setImageResource(R.drawable.ic_monero)
+            setColorFilter(getColor(R.color.monero_green))
         }
         val head = Ui.vertical(this).apply { gravity = Gravity.CENTER_HORIZONTAL; setPadding(0, Ui.dp(this@SettingsActivity, 24), 0, Ui.dp(this@SettingsActivity, 8)) }
         head.addView(logo, LinearLayout.LayoutParams(Ui.dp(this, 72), Ui.dp(this, 72)))
@@ -424,6 +457,184 @@ class SettingsActivity : Activity() {
         heading("Licence of manjaro-sway")
         val license = try { assets.open("manjaro-sway/LICENSE").bufferedReader().use { it.readText() } } catch (_: Exception) { "MIT" }
         note(license)
+    }
+
+    // ---- Omarchy -----------------------------------------------------------------
+
+    private fun omarchyPage() {
+        title.text = "Omarchy"
+        val rootFs = app.rootFs
+        val bundled = try { assets.open("omarchy/VERSION").bufferedReader().use { it.readText().trim() } } catch (_: Exception) { "?" }
+        val bundledRef = try { assets.open("omarchy/REF").bufferedReader().use { it.readText().trim() } } catch (_: Exception) { "" }
+        heading("Status")
+        val ref = File(rootFs.dir, "etc/swatonly/omarchy-ref").takeIf { it.isFile }?.readText()?.trim()
+        item("Omarchy", if (rootFs.omarchyInstalled) "/usr/share/omarchy · ${ref?.take(7) ?: "?"}" else "not installed", if (rootFs.omarchyInstalled) "installed" else "—")
+        item("Bundled with this launcher", "basecamp/omarchy ${bundledRef.take(7)}", bundled)
+        note("Under proot Omarchy brings its commands, menu, themes and configs. Its bootloader, plymouth, sddm, hardware fixes and system services cannot work without a real kernel and root, so they are skipped. Hyprland needs a GPU render node; when it cannot start, the session uses sway with Omarchy's themes.")
+        heading("Desktop")
+        if (rootFs.omarchyInstalled) {
+            choice("Window manager", "Hyprland falls back to sway when it cannot start under proot",
+                listOf("sway" to "sway (manjaro-sway)", "hyprland" to "Hyprland (Omarchy, experimental)"), { prefs.desktopWm }) { prefs.desktopWm = it }
+            item("Open the Omarchy menu", null) { SystemMenu(this) { startActivity(Intent(this, LauncherActivity::class.java)) }.show() }
+            item("Themes", "Omarchy themes are listed with the manjaro-sway ones") { open("themes") }
+            item("Pick a theme with omarchy-theme-set", null) {
+                val names = app.themes.omarchyNames()
+                Ui.choose(this, "Omarchy theme", names.map { it to it.removePrefix("omarchy:") }, null) { n ->
+                    SystemMenu.run(this, "Theme", "omarchy-theme-set ${org.swatonly.launcher.linux.Proot.quote(n.removePrefix("omarchy:"))}", terminal = true)
+                }
+            }
+            item("Appearance", "fonts, bar, windows, workspace layout") { SystemMenu(this) {}.show("appearance") }
+            item("Keybindings", "omarchy-menu-keybindings") { SystemMenu.run(this, "Keybindings", "omarchy-menu-keybindings", terminal = false) }
+            heading("Maintenance")
+            item("Update Omarchy", "fetch $bundledRef and install new packages") {
+                TerminalActivity.start(this, "Omarchy update", listOf("/bin/bash", "-lc", "bash /opt/swatonly/omarchy-setup.sh; echo; read -rp 'Press enter to close'"))
+            }
+            item("Restore Omarchy configs", "copies Omarchy's defaults over ~/.config (omarchy-refresh-config)") {
+                Ui.confirm(this, "Restore configs", "Overwrite your Omarchy configs in ~/.config with the defaults?", "Restore") {
+                    TerminalActivity.start(this, "Omarchy configs", listOf("/bin/bash", "-lc",
+                        "cp -Rf \$OMARCHY_PATH/config/. ~/.config/ && echo restored; echo; read -rp 'Press enter to close'"))
+                }
+            }
+            item("Edit Hyprland config", "~/.config/hypr") { editFile("/root/.config/hypr") }
+        } else {
+            item("Install Omarchy", "launcher + Manjaro Sway + Omarchy") { InstallActivity.start(this, "omarchy") }
+            item("Browse the Omarchy menu", "bundled copy; actions need the install") {
+                val old = prefs.menuSource
+                prefs.menuSource = "omarchy"
+                SystemMenu(this) {}.show()
+                prefs.menuSource = old
+            }
+        }
+        heading("Learn")
+        item("Omarchy manual", "omarchy.org/manual") { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://omarchy.org/manual/"))) }
+        item("Source", "github.com/basecamp/omarchy") { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/basecamp/omarchy"))) }
+    }
+
+    // ---- tiling ---------------------------------------------------------------------
+
+    private fun tilingPage() {
+        title.text = "Tiling buttons"
+        heading("Window manager")
+        choice("Desktop", if (app.rootFs.hyprlandInstalled) "Hyprland falls back to sway when it cannot start" else "Hyprland comes with Omarchy",
+            listOf("sway" to "sway", "hyprland" to "Hyprland (experimental)"), { prefs.desktopWm }) { prefs.desktopWm = it }
+        switch("Tiling buttons", "a row of buttons over the desktop window (toggle it with ▦)", { prefs.showTilingButtons }) { prefs.showTilingButtons = it }
+        choice("Workspaces on the bar", "while the desktop runs", listOf(0, 3, 4, 5, 6, 8, 10).map { "$it" to if (it == 0) "off" else "$it" },
+            { "${prefs.workspacesOnBar}" }) { prefs.workspacesOnBar = it.toInt(); app.themes.invalidate() }
+        switch("Android apps in split screen", "apps from the bar open beside the current one when the screen is split", { prefs.androidSplitScreen }) { prefs.androidSplitScreen = it }
+        heading("Buttons (tap: on/off, long press: move)")
+        note("Commands are sway's; under Hyprland they are translated by /opt/swatonly/wm-msg.")
+        val on = prefs.tilingButtons
+        val ordered = on.mapNotNull { org.swatonly.launcher.linux.Tiling.byId(it) } + org.swatonly.launcher.linux.Tiling.ALL.filter { it.id !in on }
+        for (b in ordered) {
+            val enabled = b.id in on
+            val row = Ui.row(this, "${b.label}   ${b.title}", b.command.takeIf { !it.endsWith(":") }, if (enabled) "on" else "off") {
+                prefs.tilingButtons = if (enabled) on - b.id else on + b.id
+                refresh()
+            }
+            if (enabled) row.setOnLongClickListener {
+                Ui.choose(this, b.title, listOf("up" to "Move left", "down" to "Move right", "first" to "Move to the start", "last" to "Move to the end"), null) { w ->
+                    val l = prefs.tilingButtons.toMutableList()
+                    val i = l.indexOf(b.id)
+                    l.removeAt(i)
+                    l.add(when (w) { "up" -> (i - 1).coerceAtLeast(0); "down" -> (i + 1).coerceAtMost(l.size); "first" -> 0; else -> l.size }, b.id)
+                    prefs.tilingButtons = l
+                    refresh()
+                }
+                true
+            }
+            body.addView(row)
+        }
+        heading("More")
+        item("Reset buttons", "back to the default set") { prefs.tilingButtons = org.swatonly.launcher.linux.Tiling.DEFAULT; refresh() }
+        item("Add your own", "any sway command, as an entry of your system menu") { open("menu") }
+    }
+
+    // ---- system menu ------------------------------------------------------------------
+
+    private fun menuPage() {
+        title.text = "System menu"
+        heading("Menu")
+        item("Open", null) { SystemMenu(this) { startActivity(Intent(this, LauncherActivity::class.java)) }.show() }
+        choice("Source", "auto: Omarchy's menu when Omarchy is installed",
+            listOf("auto" to "auto", "omarchy" to "Omarchy (omarchy-menu.jsonc)", "manjaro-sway" to "Manjaro Sway"), { prefs.menuSource }) { prefs.menuSource = it }
+        switch("Icons", "Nerd Font glyphs, when the install has a Nerd Font", { prefs.menuShowIcons }) {
+            prefs.menuShowIcons = it
+            org.swatonly.launcher.menu.MenuModel.resetIconFont()
+        }
+        note("Long press the Monero logo on the bar to open this menu.")
+        heading("Your entries")
+        note("~/.config/swatonly/menu.jsonc uses the format of Omarchy's omarchy-menu.jsonc: dotted ids make the tree, \"action\" runs a command in the desktop, \"terminal\": true runs it in a terminal. Your ids are added to (or replace) the menu's.")
+        item("Edit my menu entries", "~/.config/swatonly/menu.jsonc") {
+            if (!app.rootFs.isExtracted) { Toast.makeText(this, "Install Linux first", Toast.LENGTH_SHORT).show(); return@item }
+            val f = File(app.rootFs.dir, "root/.config/swatonly/menu.jsonc")
+            if (!f.isFile) {
+                f.parentFile?.mkdirs()
+                f.writeText("{\n  // examples:\n  \"mine\": {\"icon\":\"\",\"label\":\"Mine\"},\n  \"mine.files\": {\"label\":\"Files\",\"action\":\"pcmanfm-qt\"},\n  \"mine.top\": {\"label\":\"htop\",\"terminal\":true,\"action\":\"btop\"},\n}\n")
+            }
+            editFile("/root/.config/swatonly/menu.jsonc")
+        }
+    }
+
+    // ---- config files --------------------------------------------------------------------
+
+    private fun editFile(guestPath: String) {
+        if (!app.rootFs.isExtracted) { Toast.makeText(this, "Install Linux first", Toast.LENGTH_SHORT).show(); return }
+        val q = org.swatonly.launcher.linux.Proot.quote(guestPath)
+        TerminalActivity.start(this, guestPath.substringAfterLast('/'), listOf("/bin/bash", "-lc",
+            "e=\${EDITOR:-\$(command -v nvim || command -v helix || command -v nano || echo vi)}; " +
+                "if [ -d $q ]; then cd $q && \$e .; else mkdir -p \$(dirname $q); \$e $q; fi"))
+    }
+
+    private fun configsPage() {
+        title.text = "Config files"
+        val rootFs = app.rootFs
+        if (!rootFs.isExtracted) { note("Install Linux first: the config files live in the Manjaro install."); return }
+        note("Opens in a terminal editor (nvim, helix or nano). Sway reloads with the button at the end.")
+        val groups = listOf(
+            "Sway" to listOf("/root/.config/sway/config", "/root/.config/sway/config.d", "/root/.config/sway/definitions.d", "/etc/sway/definitions", "/etc/sway/autostart", "/etc/sway/modes", "/etc/sway/inputs"),
+            "Bar, notifications, launcher" to listOf("/root/.config/waybar", "/root/.config/mako/config", "/root/.config/rofi", "/root/.config/swaync", "/root/.config/walker"),
+            "Terminal & shell" to listOf("/root/.config/foot/foot.ini", "/root/.config/alacritty", "/root/.config/kitty", "/root/.bashrc", "/root/.zshrc", "/root/.config/starship.toml"),
+            "Hyprland & Omarchy" to listOf("/root/.config/hypr", "/root/.config/omarchy", "/root/.local/state/omarchy/current", "/usr/share/omarchy/default/hypr"),
+            "System" to listOf("/etc/pacman.conf", "/etc/pacman.d/mirrorlist", "/etc/locale.gen", "/etc/environment", "/etc/profile.d/swatonly.sh", "/opt/swatonly/sway-proot.conf"),
+            "Launcher" to listOf("/root/.config/swatonly/menu.jsonc"),
+        )
+        for ((group, paths) in groups) {
+            val existing = paths.filter { rootFs.has(it) || it.endsWith("menu.jsonc") }
+            if (existing.isEmpty()) continue
+            heading(group)
+            for (pth in existing) item(pth.substringAfterLast('/'), pth, if (rootFs.resolve(pth)?.isDirectory == true) "dir" else null) { editFile(pth) }
+        }
+        heading("More")
+        item("Open any file…", "path inside Manjaro") { Ui.prompt(this, "File", "/root/.config/", "/root/.config/…") { editFile(it.trim()) } }
+        item("File manager", "nnn / ranger / mc in a terminal") {
+            TerminalActivity.start(this, "Files", listOf("/bin/bash", "-lc", "cd /root; for f in yazi nnn ranger mc; do command -v \$f >/dev/null && exec \$f; done; ls -la; exec bash -l"))
+        }
+        item("Reload window manager", "apply the edits") { Session.reloadSway(this) }
+    }
+
+    // ---- keybindings ------------------------------------------------------------------------
+
+    private fun keybindingsPage() {
+        title.text = "Keybindings"
+        val rootFs = app.rootFs
+        if (rootFs.runningWm == "hyprland") item("Show Omarchy's keybindings", "omarchy-menu-keybindings") {
+            SystemMenu.run(this, "Keybindings", "omarchy-menu-keybindings", terminal = false)
+        }
+        note("From the sway configuration in the install (bundled manjaro-sway ${BuildConfig.MANJARO_SWAY_TAG} when it is not installed). Tap one to change it in your config.")
+        bg({
+            val binds = Keybindings.load(this)
+            runOnUiThread {
+                if (stack.lastOrNull() != "keybindings") return@runOnUiThread
+                var mode = ""
+                for (b in binds) {
+                    if (b.mode != mode) { mode = b.mode; heading(if (mode.isEmpty()) "default" else "mode: $mode") }
+                    item(b.keys, b.command.take(120), null) {
+                        if (rootFs.isExtracted) editFile(b.file) else Toast.makeText(this, b.file, Toast.LENGTH_SHORT).show()
+                    }
+                }
+                if (binds.isEmpty()) note("No bindsym lines found.")
+            }
+        })
     }
 
     companion object {

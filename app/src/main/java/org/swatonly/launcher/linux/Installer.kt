@@ -175,7 +175,7 @@ class Installer(private val ctx: Context, private val listener: Listener) {
     }
 
     companion object {
-        private val SCRIPTS = listOf("setup.sh", "systemctl", "swatonly-run", "sway-session.sh", "sway-run")
+        private val SCRIPTS = listOf("setup.sh", "omarchy-setup.sh", "systemctl", "swatonly-run", "sway-session.sh", "sway-run", "wm-msg")
         private val FILES = listOf("profile.sh", "sway-proot.conf")
 
         fun stagePayload(ctx: Context) {
@@ -197,6 +197,11 @@ class Installer(private val ctx: Context, private val listener: Listener) {
                 try { ctx.assets.open("manjaro-sway/$n").close(); true } catch (_: IOException) { false }
             } ?: throw IOException("manjaro-sway payload missing from the APK")
             ctx.assets.open("manjaro-sway/$name").use { TarExtractor(payload).extract(it) }
+            // Omarchy: the commit to clone and the package lists (omarchy-setup.sh)
+            val om = File(opt, "omarchy")
+            File(om, "packages").mkdirs()
+            for (f in listOf("REF", "VERSION")) copyAsset(ctx, "omarchy/$f", File(om, f))
+            ctx.assets.list("omarchy/packages")?.forEach { copyAsset(ctx, "omarchy/packages/$it", File(om, "packages/$it")) }
             for (f in listOf("TAG", "Packages-Desktop", "LICENSE")) {
                 try {
                     ctx.assets.open("manjaro-sway/$f").use { input -> FileOutputStream(File(ms, f)).use { input.copyTo(it) } }
@@ -207,12 +212,19 @@ class Installer(private val ctx: Context, private val listener: Listener) {
                 File(rootFs.dir, "usr/local/bin").mkdirs()
                 File(opt, "systemctl").copyTo(File(rootFs.dir, "usr/local/bin/systemctl"), overwrite = true)
                 File(opt, "swatonly-run").copyTo(File(rootFs.dir, "usr/local/bin/swatonly-run"), overwrite = true)
-                for (n in listOf("systemctl", "swatonly-run")) {
+                File(opt, "wm-msg").copyTo(File(rootFs.dir, "usr/local/bin/wm-msg"), overwrite = true)
+                for (n in listOf("systemctl", "swatonly-run", "wm-msg")) {
                     try { Os.chmod(File(rootFs.dir, "usr/local/bin/$n").path, "755".toInt(8)) } catch (_: Exception) {}
                 }
                 File(rootFs.dir, "etc/profile.d").mkdirs()
                 File(opt, "profile.sh").copyTo(File(rootFs.dir, "etc/profile.d/swatonly.sh"), overwrite = true)
             }
+        }
+
+        private fun copyAsset(ctx: Context, path: String, out: File) {
+            try {
+                ctx.assets.open(path).use { input -> FileOutputStream(out).use { input.copyTo(it) } }
+            } catch (_: IOException) {}
         }
 
         private fun deleteTree(f: File) {

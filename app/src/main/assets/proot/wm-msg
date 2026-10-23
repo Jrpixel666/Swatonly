@@ -1,0 +1,90 @@
+#!/bin/bash
+# Swatonly: talk to the running tiling window manager, sway or Hyprland.
+#   wm-msg exec <shell command>   start a program inside the session
+#   wm-msg <sway command>         e.g. "focus left", "workspace number 2"
+#   wm-msg hypr <dispatcher args> e.g. "movefocus l" (Hyprland only)
+#   wm-msg which                  prints sway, hyprland or nothing
+# Sway commands are translated for Hyprland, so callers can speak sway.
+# Waits up to 60 s for the session to come up when it was just started.
+runtime="${XDG_RUNTIME_DIR:-/run/user/0}"
+
+sway_sock() {
+    local s pid
+    for s in $(ls -t "$runtime"/sway-ipc.*.sock 2>/dev/null); do
+        pid=${s##*/sway-ipc.}; pid=${pid#*.}; pid=${pid%.sock}
+        kill -0 "$pid" 2>/dev/null && { echo "$s"; return 0; }
+    done
+    return 1
+}
+
+hypr_sig() {
+    local d
+    for d in $(ls -td "$runtime"/hypr/*/ 2>/dev/null); do
+        [ -S "$d/.socket.sock" ] && { basename "$d"; return 0; }
+    done
+    return 1
+}
+
+which_wm() {
+    if [ "$(cat "$runtime/swatonly-wm" 2>/dev/null)" = hyprland ] && hypr_sig >/dev/null; then echo hyprland; return 0; fi
+    sway_sock >/dev/null && { echo sway; return 0; }
+    hypr_sig >/dev/null && { echo hyprland; return 0; }
+    return 1
+}
+
+# sway command -> Hyprland dispatcher
+to_hypr() {
+    local dir
+    case "$1" in
+        "focus left"|"focus right"|"focus up"|"focus down") dir=${1#focus }; echo "movefocus ${dir:0:1}" ;;
+        "move left"|"move right"|"move up"|"move down") dir=${1#move }; echo "movewindow ${dir:0:1}" ;;
+        "workspace number "*) echo "workspace ${1#workspace number }" ;;
+        "workspace next"*) echo "workspace e+1" ;;
+        "workspace prev"*) echo "workspace e-1" ;;
+        "move container to workspace number "*) echo "movetoworkspace ${1##* }" ;;
+        "fullscreen"|"fullscreen toggle") echo "fullscreen 0" ;;
+        "floating toggle") echo "togglefloating" ;;
+        "kill") echo "killactive" ;;
+        "splith"|"splitv"|"split toggle"|"layout toggle split") echo "layoutmsg togglesplit" ;;
+        "layout tabbed"|"layout stacking") echo "togglegroup" ;;
+        "sticky toggle") echo "pin" ;;
+        "focus mode_toggle") echo "cyclenext floating" ;;
+        "move scratchpad") echo "movetoworkspacesilent special" ;;
+        "scratchpad show") echo "togglespecialworkspace" ;;
+        "resize grow width"*) echo "resizeactive 40 0" ;;
+        "resize shrink width"*) echo "resizeactive -40 0" ;;
+        "resize grow height"*) echo "resizeactive 0 40" ;;
+        "resize shrink height"*) echo "resizeactive 0 -40" ;;
+        "reload") echo "__reload" ;;
+        "exit") echo "exit" ;;
+        *) echo "__unsupported" ;;
+    esac
+}
+
+[ $# -gt 0 ] || { echo "usage: wm-msg exec <cmd> | <sway command> | which" >&2; exit 2; }
+if [ "$1" = which ]; then which_wm; exit $?; fi
+
+for _ in $(seq 1 120); do
+    wm=$(which_wm) && break
+    [ "$1" = exec ] || { echo "wm-msg: no running sway or Hyprland session" >&2; exit 1; }
+    sleep 0.5
+done
+[ -n "${wm:-}" ] || { echo "wm-msg: no running sway or Hyprland session" >&2; exit 1; }
+
+if [ "$wm" = sway ]; then
+    [ "$1" = hypr ] && { echo "wm-msg: sway is running, not Hyprland" >&2; exit 1; }
+    exec swaymsg -s "$(sway_sock)" "$*"
+fi
+
+export HYPRLAND_INSTANCE_SIGNATURE=$(hypr_sig)
+case "$1" in
+    exec) shift; exec hyprctl dispatch exec "$*" ;;
+    hypr) shift; exec hyprctl dispatch "$@" ;;
+esac
+d=$(to_hypr "$*")
+case "$d" in
+    __reload) exec hyprctl reload ;;
+    __unsupported) echo "wm-msg: '$*' has no Hyprland equivalent" >&2; exit 1 ;;
+esac
+# shellcheck disable=SC2086
+exec hyprctl dispatch $d
