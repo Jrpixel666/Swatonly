@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Fetches Omarchy (basecamp/omarchy) and stages the parts the launcher reads
-# into app/src/main/assets/omarchy:
+# into app/src/omarchy/assets/omarchy:
 #
 #   menu.jsonc     the Omarchy menu definition (the launcher's System menu)
 #   themes/<name>/colors.toml   every Omarchy theme's palette
@@ -14,7 +14,7 @@ set -euo pipefail
 
 REF="${1:-}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-OUT="$ROOT/app/src/main/assets/omarchy"
+OUT="$ROOT/app/src/omarchy/assets/omarchy"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 

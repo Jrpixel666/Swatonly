@@ -7,6 +7,34 @@ the real Manjaro Sway desktop under **proot**, with **no root**, and add
 **inside the tiling window manager** (sway, or Omarchy's Hyprland), which
 tiles them like on the desktop, and you drive it with on-screen **tiling buttons**.
 
+## Spins
+
+The APK comes in two spins, which can be installed side by side:
+
+| Spin | APK | Setup choice |
+|---|---|---|
+| **Manjaro Sway** (`sway` flavour, `org.swatonly.launcher.sway`) | `manjaro-sway-launcher-<tag>.apk` | **Launcher only** or **Launcher + Manjaro Sway**, asked every time the launcher starts until Manjaro Sway is installed. Its system menu is built from the install's own tiling window manager configuration (see below). No Omarchy. |
+| **Omarchy** (`omarchy` flavour, `org.swatonly.launcher`) | `swatonly-omarchy-launcher-<tag>.apk` | **Launcher only** or **Launcher + Omarchy** (Manjaro Sway with Omarchy on top), on every start unless turned off. |
+
+### The tiling menu (Manjaro Sway spin)
+
+*Menu › Tiling (sway)* is read from `/etc/sway/modes` in the install (or the
+bundled release before it is installed), the way manjaro-sway's `help.sh`
+reads it:
+
+* every `## Category // Description ##` binding is an entry under its
+  category (Launch, Action, Navigation, Setting), with its keys shown under it;
+* bindings sharing one comment (move focus ←↓↑→, switch workspace 1–10…)
+  become one submenu;
+* a binding that enters a sway mode opens that mode's keys as a submenu:
+  *Exit Menu* (lock, logout, suspend, reboot, shutdown), *Screenshot Mode*,
+  *Recording Mode*, *Resize Mode*.
+
+Entries send their sway command through `/opt/swatonly/wm-msg`, so `$term`,
+`$menu` and the other variables are expanded by sway itself. The rest of the
+menu (Appearance, Trigger, Setup, Install, Remove, Update, Learn, System)
+comes from `menus/manjaro-sway.jsonc`, plus your own `~/.config/swatonly/menu.jsonc`.
+
 It is built from manjaro-sway release
 [`202610180719`](https://github.com/manjaro-sway/manjaro-sway/releases/tag/202610180719).
 The build bundles that release's themes, wallpapers, the `manjaro-sway-settings`
@@ -22,7 +50,7 @@ plus Omarchy's menu definition, themes and package lists.
 | **Tiling buttons** | A button row over the desktop window: workspaces, focus/move, split h/v, tabbed, stacking, floating, fullscreen, resize, scratchpad, close, the system menu and the app launcher. Pick and order them in *Settings › Tiling buttons*. They send sway commands through `/opt/swatonly/wm-msg`, which translates them for Hyprland. |
 | **My apps** | A menu styled like rofi (`drun` + `run`, like manjaro-sway's `$menu`). It lists Android apps and the Manjaro install's desktop entries, grouped by freedesktop category. CLI/TUI tools (btop, pulsemixer, bluetuith, pacseek…) get their own menu. Anything else you type runs as a command. |
 | **Home screen** | The manjaro-sway background (`generate-bg.sh`'s template in the theme's colours) or the gruvbox wallpapers, plus a conky-like info widget. Swipe up for apps, swipe down for notifications, double-tap to switch day/night, long-press for the menu. |
-| **Setup choice** | Every time the launcher starts it asks: **Launcher only** or **Launcher + Omarchy** (Manjaro Sway + Omarchy; installs on first use, starts afterwards). You can turn the question off. Manjaro Sway without Omarchy stays available in *Settings › Linux*. |
+| **Setup choice** | Manjaro Sway spin: **Launcher only** or **Launcher + Manjaro Sway**, asked each time the launcher starts until Manjaro Sway is installed. Omarchy spin: **Launcher only** or **Launcher + Omarchy**, on every start (can be turned off). |
 | **Themes** | All manjaro-sway themes (matcha, catppuccin, dracula, nordic, atari…), read from `/usr/share/sway/themes` in the install when it exists, and every Omarchy theme (tokyo-night, catppuccin, everforest, gruvbox, kanagawa, nord, rose-pine…), whose `colors.toml` becomes a sway and foot theme. A day theme and a night theme work like `theme-toggle.sh`. With Omarchy installed, picking an Omarchy theme also runs `omarchy-theme-set`. |
 | **Tweaks** | Discovered from the install's `/etc/sway/autostart` and `/etc/sway/definitions`: every session daemon, every theme-application step and every sway variable. Window-manager options (gaps, borders, focus, layout, keyboard layout) are here too. Changes are written to `~/.config/sway/definitions.d` and `config.d`, then sway reloads. |
 | **Linux windows** | Apps started from the launcher open inside the sway session (one Android window), where the sway tiling window manager arranges them. Without sway (or with *Open Linux apps inside sway* off) each app fills the screen on its own. Touch becomes mouse input (tap = click, long press = right click, two fingers = scroll). It has an extra-keys row (Esc, Tab, Ctrl, Alt, Super, arrows), supports the soft keyboard, and shares the clipboard with Android. |
@@ -61,7 +89,7 @@ plus Omarchy's menu definition, themes and package lists.
 
 ## Building
 
-GitHub Actions builds the APK on every push (`.github/workflows/build-apk.yml`).
+GitHub Actions builds both APKs on every push (`.github/workflows/build-apk.yml`).
 You can download it from the run's artifacts. To publish a release, run the
 workflow manually with *release* checked, or push a `v*` tag.
 
@@ -69,9 +97,11 @@ To build locally (you need the Android SDK and `patchelf`):
 
 ```sh
 scripts/fetch-manjaro-sway.sh 202610180719   # themes, payload, wallpapers -> assets
-scripts/fetch-omarchy.sh                      # Omarchy menu, themes, package lists -> assets
+scripts/fetch-omarchy.sh                      # Omarchy spin only: menu, themes, package lists -> src/omarchy/assets
 scripts/fetch-proot.sh                       # Termux proot + talloc -> jniLibs
-./gradlew assembleRelease
+./gradlew assembleSwayRelease                # Manjaro Sway spin
+./gradlew assembleOmarchyRelease             # Omarchy spin
+./gradlew testSwayReleaseUnitTest            # tiling menu, built from the fetched release
 ```
 
 `scripts/gen-keymap.py` regenerates the US xkb keymap the compositor sends to

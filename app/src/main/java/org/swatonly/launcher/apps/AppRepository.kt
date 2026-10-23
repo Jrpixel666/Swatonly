@@ -9,6 +9,7 @@ import android.os.Looper
 import android.os.UserManager
 import android.widget.Toast
 import org.swatonly.launcher.App
+import org.swatonly.launcher.Spin
 import org.swatonly.launcher.linux.Session
 import org.swatonly.launcher.term.TerminalActivity
 import org.swatonly.launcher.ui.InstallActivity
@@ -102,11 +103,11 @@ object AppRepository {
     fun actions(): List<AppEntry.Action> {
         val rootFs = App.instance.rootFs
         val out = ArrayList<AppEntry.Action>()
-        out += AppEntry.Action("menu", "System menu", if (rootFs.omarchyInstalled) "Omarchy menu" else "Manjaro Sway menu")
+        out += AppEntry.Action("menu", "System menu", if (rootFs.omarchyInstalled) "Omarchy menu" else "Manjaro Sway menu: tiling, modes, setup")
         out += AppEntry.Action("terminal", "Terminal", "Manjaro shell (built-in terminal)")
         if (rootFs.swayInstalled) out += AppEntry.Action("sway", "Desktop", if (rootFs.omarchyInstalled) "Manjaro Sway + Omarchy as one window" else "The full Manjaro Sway session as one window")
         if (!rootFs.swayInstalled) out += AppEntry.Action("install", "Install Manjaro Sway", "Download Manjaro and install sway under proot")
-        if (!rootFs.omarchyInstalled) out += AppEntry.Action("install-omarchy", "Install Omarchy", "Manjaro Sway plus Omarchy's menu, themes and tools")
+        if (Spin.omarchy && !rootFs.omarchyInstalled) out += AppEntry.Action("install-omarchy", "Install Omarchy", "Manjaro Sway plus Omarchy's menu, themes and tools")
         if (rootFs.isExtracted) {
             out += AppEntry.Action("update", "Update system", "pacman -Syu")
             out += AppEntry.Action("packages", "Install packages", "pacman -S in a terminal")

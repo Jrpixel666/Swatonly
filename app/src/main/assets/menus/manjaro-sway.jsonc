@@ -68,12 +68,13 @@
   "setup.config": {"icon":"","label":"Config files…","launcher":"settings:configs"},
   "setup.keybindings": {"icon":"","label":"Keybindings…","launcher":"settings:keybindings"},
   "setup.launcher": {"icon":"","label":"Launcher settings…","launcher":"settings:main"},
-  "setup.setup-choice": {"icon":"󰑓","label":"Launcher only / launcher + Omarchy","launcher":"setup"},
+  "setup.setup-choice": {"icon":"󰑓","label":"Setup choice (launcher only / full install)","launcher":"setup"},
 
   // Install / remove
   "install.package": {"icon":"󰣇","label":"Package (pacseek)","terminal":true,"action":"command -v pacseek >/dev/null && exec pacseek; read -rp 'Packages to install: ' p; pacman -S --needed $p"},
   "install.aur": {"icon":"󰣇","label":"AUR package (yay)","terminal":true,"action":"command -v yay >/dev/null || pacman -S --needed --noconfirm yay; read -rp 'AUR packages: ' p; yay -S $p"},
   "install.theme-packages": {"icon":"󰸌","label":"Theme packages…","launcher":"settings:themes"},
+  "install.manjaro-sway": {"icon":"","label":"Manjaro Sway desktop","when":"[ ! -x /usr/bin/sway ]","launcher":"install:sway"},
   "install.omarchy": {"icon":"","label":"Omarchy","when":"[ ! -d /usr/share/omarchy ]","launcher":"install:omarchy"},
   "remove.package": {"icon":"󰭌","label":"Package","terminal":true,"action":"read -rp 'Packages to remove: ' p; pacman -Rns $p"},
   "remove.orphans": {"icon":"󰭌","label":"Orphaned packages","terminal":true,"action":"o=$(pacman -Qdtq); [ -n \"$o\" ] && pacman -Rns $o || echo 'no orphans'"},

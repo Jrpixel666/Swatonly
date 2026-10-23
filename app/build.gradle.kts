@@ -43,6 +43,26 @@ android {
 
     buildFeatures { buildConfig = true }
 
+    // Two spins of the launcher, installable side by side:
+    //   sway     Manjaro Sway only: launcher, or launcher + Manjaro Sway under proot
+    //   omarchy  Manjaro Sway with Omarchy on top
+    flavorDimensions += "spin"
+    productFlavors {
+        create("sway") {
+            dimension = "spin"
+            applicationIdSuffix = ".sway"
+            versionNameSuffix = "-sway"
+            buildConfigField("String", "SPIN", "\"sway\"")
+            resValue("string", "app_name", "Manjaro Sway")
+        }
+        create("omarchy") {
+            dimension = "spin"
+            isDefault = true
+            buildConfigField("String", "SPIN", "\"omarchy\"")
+            resValue("string", "app_name", "Swatonly")
+        }
+    }
+
     packaging {
         // proot and its loader are shipped as "libraries" so Android extracts
         // them to the (executable) native library directory.
@@ -68,4 +88,5 @@ dependencies {
     implementation("com.caverock:androidsvg-aar:1.4")
     implementation("org.tukaani:xz:1.10")
     implementation("com.termux.termux-app:terminal-view:0.118.0")
+    testImplementation("junit:junit:4.13.2")
 }

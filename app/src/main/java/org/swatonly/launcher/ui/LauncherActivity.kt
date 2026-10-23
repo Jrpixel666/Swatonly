@@ -29,6 +29,7 @@ import android.widget.TextView
 import org.swatonly.launcher.App
 import org.swatonly.launcher.BuildConfig
 import org.swatonly.launcher.R
+import org.swatonly.launcher.Spin
 import org.swatonly.launcher.apps.AppEntry
 import org.swatonly.launcher.apps.AppRepository
 import org.swatonly.launcher.apps.IconLoader
@@ -145,7 +146,7 @@ class LauncherActivity : Activity() {
         if (intent?.getBooleanExtra(EXTRA_SETUP_CHOICE, false) == true) {
             app.setupChoiceAsked = true
             root.post { showSetupChoice() }
-        } else if (!app.setupChoiceAsked && prefs.askSetupEveryStart) {
+        } else if (!app.setupChoiceAsked && askSetupNow()) {
             app.setupChoiceAsked = true
             root.post { showSetupChoice() }
         } else if (!app.setupChoiceAsked) {
@@ -364,7 +365,7 @@ class LauncherActivity : Activity() {
         chip("☰ menu") { showSystemMenu() }
         if (rootFs.isExtracted) chip(">_ terminal") { AppRepository.runAction(this, "terminal") }
         if (rootFs.swayInstalled) chip(if (Session.swayRunning) "◆ desktop" else "▶ desktop") { Session.startSway(this) }
-        else chip("⇩ omarchy") { InstallActivity.start(this, "omarchy") }
+        else chip("⇩ ${Spin.desktopName.lowercase()}") { InstallActivity.start(this, Spin.desktopMode) }
         chip(if (prefs.activeVariant == "night") "☀ day" else "☾ night") { toggleDayNight() }
     }
 
@@ -395,13 +396,20 @@ class LauncherActivity : Activity() {
             Ui.choose(this, "Wallpaper", WALLPAPERS, prefs.wallpaper) { prefs.wallpaper = it; recreate() }
         })
         box.addView(Ui.row(this, "Switch to ${if (prefs.activeVariant == "night") "day" else "night"} theme") { d?.dismiss(); toggleDayNight() })
-        box.addView(Ui.row(this, "Setup: launcher only / launcher + Omarchy") { d?.dismiss(); showSetupChoice() })
+        box.addView(Ui.row(this, "Setup: launcher only / launcher + ${Spin.desktopName}") { d?.dismiss(); showSetupChoice() })
         box.addView(Ui.row(this, "Settings") { d?.dismiss(); startActivity(Intent(this, SettingsActivity::class.java)) })
         d = Ui.dialog(this, "Swatonly", box)
         d.show()
     }
 
-    // ---- setup choice: shown every time the launcher starts (configurable) ------
+    // ---- setup choice -------------------------------------------------------------
+
+    /**
+     * Whether this start asks "launcher only / launcher + …". The Manjaro Sway
+     * spin asks every time until Manjaro Sway is installed; the Omarchy spin
+     * asks on every start unless that is turned off.
+     */
+    private fun askSetupNow(): Boolean = if (Spin.omarchy) prefs.askSetupEveryStart else !Spin.desktopInstalled()
 
     fun showSetupChoice() {
         val rootFs = app.rootFs
@@ -429,33 +437,54 @@ class LauncherActivity : Activity() {
             "The manjaro-sway look as your Android home screen. Nothing is installed or started on the Linux side.") {
             prefs.lastSetupChoice = "launcher"
         }
-        val omarchyBody = when {
-            rootFs.omarchyInstalled ->
-                "Manjaro Sway + Omarchy are installed: start the desktop (proot, no root). Linux apps open tiled, with Omarchy's menu, themes and tools."
-            rootFs.swayInstalled ->
-                "Manjaro Sway is installed. Add Omarchy on top (its menu, themes, tools and the packages your CPU has), then start the desktop."
-            else ->
-                "Download Manjaro, install sway and the manjaro-sway-settings from release ${BuildConfig.MANJARO_SWAY_TAG}, then Omarchy, all under proot without root. Firmware and kernel modules are skipped."
-        }
-        option(if (rootFs.omarchyInstalled) "Launcher + Omarchy" else "Launcher + Omarchy (install)", omarchyBody) {
-            prefs.lastSetupChoice = "omarchy"
-            if (rootFs.omarchyInstalled) Session.startSway(this) else InstallActivity.start(this, "omarchy")
-        }
-        if (rootFs.swayInstalled && !rootFs.omarchyInstalled) {
-            box.addView(Ui.row(this, "Start Manjaro Sway without Omarchy", "the desktop as it is now") {
-                prefs.lastSetupChoice = "sway"; Session.startSway(this); d?.dismiss()
-            })
+        if (Spin.omarchy) {
+            val omarchyBody = when {
+                rootFs.omarchyInstalled ->
+                    "Manjaro Sway + Omarchy are installed: start the desktop (proot, no root). Linux apps open tiled, with Omarchy's menu, themes and tools."
+                rootFs.swayInstalled ->
+                    "Manjaro Sway is installed. Add Omarchy on top (its menu, themes, tools and the packages your CPU has), then start the desktop."
+                else ->
+                    "Download Manjaro, install sway and the manjaro-sway-settings from release ${BuildConfig.MANJARO_SWAY_TAG}, then Omarchy, all under proot without root. Firmware and kernel modules are skipped."
+            }
+            option(if (rootFs.omarchyInstalled) "Launcher + Omarchy" else "Launcher + Omarchy (install)", omarchyBody) {
+                prefs.lastSetupChoice = "omarchy"
+                if (rootFs.omarchyInstalled) Session.startSway(this) else InstallActivity.start(this, "omarchy")
+            }
+            if (rootFs.swayInstalled && !rootFs.omarchyInstalled) {
+                box.addView(Ui.row(this, "Start Manjaro Sway without Omarchy", "the desktop as it is now") {
+                    prefs.lastSetupChoice = "sway"; Session.startSway(this); d?.dismiss()
+                })
+            }
+        } else {
+            val swayBody = when {
+                rootFs.swayInstalled ->
+                    "Manjaro Sway is installed: start the desktop (proot, no root). Linux apps open tiled by sway; drive it with the tiling buttons."
+                rootFs.isExtracted ->
+                    "Finish the install: sway, waybar, foot, rofi, mako and the manjaro-sway-settings from release ${BuildConfig.MANJARO_SWAY_TAG}, under proot."
+                else ->
+                    "Download Manjaro and install the Manjaro Sway desktop (sway, waybar, foot, rofi, mako, manjaro-sway-settings ${BuildConfig.MANJARO_SWAY_TAG}) under proot, without root. Firmware and kernel modules are skipped: pacman never unpacks them."
+            }
+            option(if (rootFs.swayInstalled) "Launcher + Manjaro Sway" else "Launcher + Manjaro Sway (install)", swayBody) {
+                prefs.lastSetupChoice = "sway"
+                if (rootFs.swayInstalled) Session.startSway(this) else InstallActivity.start(this, "sway")
+            }
         }
 
-        val ask = CheckBox(this).apply {
-            text = "Ask every time the launcher starts"
-            setTextColor(theme.text)
-            typeface = Ui.mono
-            isChecked = prefs.askSetupEveryStart
-            buttonTintList = android.content.res.ColorStateList.valueOf(theme.accent)
-            setOnCheckedChangeListener { _, on -> prefs.askSetupEveryStart = on }
+        if (Spin.omarchy) {
+            val ask = CheckBox(this).apply {
+                text = "Ask every time the launcher starts"
+                setTextColor(theme.text)
+                typeface = Ui.mono
+                isChecked = prefs.askSetupEveryStart
+                buttonTintList = android.content.res.ColorStateList.valueOf(theme.accent)
+                setOnCheckedChangeListener { _, on -> prefs.askSetupEveryStart = on }
+            }
+            box.addView(ask)
+        } else if (!rootFs.swayInstalled) {
+            box.addView(Ui.text(this, "Asked each time Swatonly starts until Manjaro Sway is installed.", 12f, theme.subtext).apply {
+                setPadding(Ui.dp(this@LauncherActivity, 2), 0, 0, Ui.dp(this@LauncherActivity, 6))
+            })
         }
-        box.addView(ask)
 
         if (!isDefaultHome()) {
             box.addView(Ui.row(this, "Make Swatonly the default home app", "so Home opens this launcher") {

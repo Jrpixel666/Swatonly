@@ -49,7 +49,7 @@ class InstallActivity : Activity(), Installer.Listener {
         root.setBackgroundColor(theme.background)
         root.setPadding(Ui.dp(this, 20), Ui.dp(this, 24), Ui.dp(this, 20), Ui.dp(this, 20))
         val desktop = mode == "sway" || mode == "omarchy"
-        root.addView(Ui.text(this, when (mode) { "omarchy" -> "Launcher + Omarchy"; "sway" -> "Launcher + Sway"; else -> "Manjaro base" }, 22f, theme.accent, bold = true))
+        root.addView(Ui.text(this, when (mode) { "omarchy" -> "Launcher + Omarchy"; "sway" -> "Launcher + Manjaro Sway"; else -> "Manjaro base" }, 22f, theme.accent, bold = true))
         val src = rootFs.defaultSource()
         val desc = buildString {
             append("Installs Manjaro into the app's private storage and runs it with proot: no root needed.\n\n")

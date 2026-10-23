@@ -176,6 +176,8 @@ class Installer(private val ctx: Context, private val listener: Listener) {
 
     companion object {
         private val SCRIPTS = listOf("setup.sh", "omarchy-setup.sh", "systemctl", "swatonly-run", "sway-session.sh", "sway-run", "wm-msg")
+        /** Only bundled by some spins (omarchy-setup.sh comes with the Omarchy spin). */
+        private val OPTIONAL = setOf("omarchy-setup.sh")
         private val FILES = listOf("profile.sh", "sway-proot.conf")
 
         fun stagePayload(ctx: Context) {
@@ -184,7 +186,11 @@ class Installer(private val ctx: Context, private val listener: Listener) {
             opt.mkdirs()
             for (name in SCRIPTS + FILES) {
                 val out = File(opt, name)
-                ctx.assets.open("proot/$name").use { input -> FileOutputStream(out).use { input.copyTo(it) } }
+                try {
+                    ctx.assets.open("proot/$name").use { input -> FileOutputStream(out).use { input.copyTo(it) } }
+                } catch (e: IOException) {
+                    if (name in OPTIONAL) { out.delete(); continue } else throw e
+                }
                 try { Os.chmod(out.path, if (name in SCRIPTS) "755".toInt(8) else "644".toInt(8)) } catch (_: Exception) {}
             }
             // the manjaro-sway-settings payload, unpacked with its modes

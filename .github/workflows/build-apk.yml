@@ -48,19 +48,29 @@ jobs:
       - name: Fetch proot (Termux build)
         run: scripts/fetch-proot.sh
 
-      - name: Build APK
-        run: ./gradlew --no-daemon assembleRelease -PmanjaroSwayTag="$MANJARO_SWAY_TAG"
+      - name: Unit tests
+        run: ./gradlew --no-daemon testSwayReleaseUnitTest -PmanjaroSwayTag="$MANJARO_SWAY_TAG"
 
-      - name: Collect APK
+      # both spins: Manjaro Sway (launcher only / launcher + Manjaro Sway) and Omarchy
+      - name: Build APKs
+        run: ./gradlew --no-daemon assembleSwayRelease assembleOmarchyRelease -PmanjaroSwayTag="$MANJARO_SWAY_TAG"
+
+      - name: Collect APKs
         run: |
           mkdir -p dist
-          cp app/build/outputs/apk/release/app-release.apk "dist/swatonly-launcher-$MANJARO_SWAY_TAG.apk"
+          cp app/build/outputs/apk/sway/release/app-sway-release.apk "dist/manjaro-sway-launcher-$MANJARO_SWAY_TAG.apk"
+          cp app/build/outputs/apk/omarchy/release/app-omarchy-release.apk "dist/swatonly-omarchy-launcher-$MANJARO_SWAY_TAG.apk"
           ls -la dist
 
       - uses: actions/upload-artifact@v4
         with:
-          name: swatonly-launcher-apk
-          path: dist/*.apk
+          name: manjaro-sway-launcher-apk
+          path: dist/manjaro-sway-launcher-*.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: swatonly-omarchy-launcher-apk
+          path: dist/swatonly-omarchy-launcher-*.apk
 
       - name: Publish release
         if: startsWith(github.ref, 'refs/tags/v') || inputs.release

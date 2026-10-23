@@ -10,10 +10,27 @@ import org.swatonly.launcher.App
  */
 object Keybindings {
 
-    data class Binding(val keys: String, val command: String, val mode: String, val file: String)
+    data class Binding(
+        val keys: String,
+        /** The help description, or the expanded command when there is none. */
+        val command: String,
+        val mode: String,
+        val file: String,
+        /** The sway command as written (variables unexpanded: sway expands them itself). */
+        val raw: String = "",
+        /** "Launch", "Action", "Navigation"…: the help comment's first part. */
+        val category: String? = null,
+        /** The help comment's description, shared by the bindings under one comment. */
+        val help: String? = null,
+        /** The comment line right above the binding inside a mode block ("# lock"). */
+        val note: String? = null,
+        /** The `$mode_*` variable a mode block was declared with. */
+        val modeVar: String = "",
+    )
 
     private val BIND = Regex("""^\s*\$?(bindsym|bindcode)\s+((?:--\S+\s+)*)(\S+)\s+(.+)$""")
     private val MODE = Regex("""^\s*mode\s+(?:--\S+\s+)*"?([^"{]+?)"?\s*\{\s*$""")
+    private val COMMENT = Regex("""^\s*#\s*([^#].*?)\s*$""")
     private val HELP = Regex("""^\s*##\s*(.+?)\s*##\s*$""")
 
     fun load(ctx: Context): List<Binding> {
@@ -34,26 +51,50 @@ object Keybindings {
             sources += "/root/.config/sway/config.d/${it.name}" to it.readText()
         }
 
+        return parse(sources, vars)
+    }
+
+    /** Parses [sources] (path to text) like help.sh; [vars] expands the keys. */
+    fun parse(sources: List<Pair<String, String>>, vars: Map<String, String>): List<Binding> {
         val out = ArrayList<Binding>()
         for ((file, text) in sources) {
             var mode = ""
+            var modeVar = ""
             var help: String? = null
+            // the help comment of a group of bindings ("Move focus" over focus left/down/up/right)
+            var group: List<String>? = null
+            var note: String? = null
             for (line in text.lines()) {
-                HELP.find(line)?.let { help = it.groupValues[1].replace(" // ", " · "); return@let }
+                if (line.isBlank()) { group = null; note = null; continue }
+                HELP.find(line)?.let { m ->
+                    help = m.groupValues[1].replace(" // ", " · ")
+                    group = m.groupValues[1].split("//").map { it.trim() }
+                    return@let
+                }
+                if (HELP.containsMatchIn(line)) continue
                 // manjaro-sway names modes with pango-markup variables ($mode_resize): show "resize"
-                MODE.find(line)?.let { mode = it.groupValues[1].trim().removePrefix("\$mode_").removePrefix("\$"); return@let }
-                if (line.trim() == "}") { mode = ""; continue }
+                MODE.find(line)?.let {
+                    modeVar = it.groupValues[1].trim()
+                    mode = modeVar.removePrefix("\$mode_").removePrefix("\$")
+                    group = null; note = null
+                    return@let
+                }
+                if (line.trim() == "}") { mode = ""; modeVar = ""; group = null; continue }
+                COMMENT.find(line)?.let { note = it.groupValues[1]; return@let }
+                if (line.trimStart().startsWith("#")) continue
                 val m = BIND.find(line) ?: continue
                 val keys = prettyKeys(expand(m.groupValues[3], vars))
                 val cmd = m.groupValues[4].trim()
-                out += Binding(keys, help ?: expand(cmd, vars), mode, file)
+                val g = group
+                out += Binding(keys, help ?: expand(cmd, vars), mode, file, raw = cmd,
+                    category = g?.getOrNull(0), help = g?.getOrNull(1), note = note, modeVar = modeVar)
                 help = null
             }
         }
         return out.sortedBy { it.mode }
     }
 
-    private fun expand(s: String, vars: Map<String, String>): String =
+    fun expand(s: String, vars: Map<String, String>): String =
         Regex("""\$([A-Za-z0-9_-]+)""").replace(s) { vars[it.groupValues[1]]?.trim('"') ?: it.value }
 
     private fun prettyKeys(k: String): String = k.split('+').joinToString(" + ") {

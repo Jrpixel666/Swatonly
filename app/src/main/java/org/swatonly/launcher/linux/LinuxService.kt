@@ -174,7 +174,7 @@ object Session {
         startBackground(ctx)
         Tweaks.write(ctx)
         val rootFs = App.instance.rootFs
-        val wm = if (App.instance.prefs.desktopWm == "hyprland" && rootFs.hyprlandInstalled) "hyprland" else "sway"
+        val wm = if (org.swatonly.launcher.Spin.omarchy && App.instance.prefs.desktopWm == "hyprland" && rootFs.hyprlandInstalled) "hyprland" else "sway"
         java.io.File(rootFs.runDir, "swatonly-wm").delete()
         sway = Proot.spawn(ctx, "sway", listOf("/bin/bash", "/opt/swatonly/sway-session.sh"),
             mapOf("XDG_CURRENT_DESKTOP" to "sway:wlroots", "SWATONLY_WM" to wm))

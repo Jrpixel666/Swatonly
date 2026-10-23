@@ -18,6 +18,7 @@ import android.widget.Toast
 import org.swatonly.launcher.App
 import org.swatonly.launcher.BuildConfig
 import org.swatonly.launcher.R
+import org.swatonly.launcher.Spin
 import org.swatonly.launcher.apps.AppRepository
 import org.swatonly.launcher.apps.IconLoader
 import org.swatonly.launcher.linux.Keybindings
@@ -170,18 +171,20 @@ class SettingsActivity : Activity() {
         title.text = getString(R.string.settings)
         val rootFs = app.rootFs
         heading("Manjaro Sway")
-        nav("Themes", "day ${themeLabel(prefs.dayTheme)} · night ${themeLabel(prefs.nightTheme)} · manjaro-sway and Omarchy themes", "themes")
+        nav("Themes", "day ${themeLabel(prefs.dayTheme)} · night ${themeLabel(prefs.nightTheme)} · manjaro-sway${if (Spin.omarchy) " and Omarchy" else ""} themes", "themes")
         nav("Tweaks", "session daemons, theme application, window manager and sway variables found in the install", "tweaks")
-        heading("Omarchy")
-        nav("Omarchy", when {
-            rootFs.omarchyInstalled -> "installed · menu, themes, window manager"
-            else -> "not installed · add it with Launcher + Omarchy"
-        }, "omarchy")
-        nav("System menu", "the install's own menu (${if (rootFs.omarchyInstalled) "Omarchy" else "Manjaro Sway"}) · source, icons, your entries", "menu")
+        if (Spin.omarchy) {
+            heading("Omarchy")
+            nav("Omarchy", when {
+                rootFs.omarchyInstalled -> "installed · menu, themes, window manager"
+                else -> "not installed · add it with Launcher + Omarchy"
+            }, "omarchy")
+        }
+        nav("System menu", "the install's own menu (${if (rootFs.omarchyInstalled) "Omarchy" else "Manjaro Sway: tiling keys, modes, setup"}) · icons, your entries", "menu")
         heading("Tiling")
         nav("Tiling buttons", "${prefs.tilingButtons.size} buttons over the desktop · workspaces on the bar · ${prefs.desktopWm}", "tiling")
         nav("Keybindings", "every shortcut of the window manager", "keybindings")
-        nav("Config files", "edit sway, waybar, foot, mako, rofi, Hyprland, Omarchy, pacman…", "configs")
+        nav("Config files", "edit sway, waybar, foot, mako, rofi, ${if (Spin.omarchy) "Hyprland, Omarchy, " else ""}pacman…", "configs")
         heading("Launcher")
         nav("Bar & home screen", "bar icons, clock, wallpaper, menu", "launcher")
         nav("Linux windows", "apps tiled inside sway, scale, input", "windows")
@@ -193,7 +196,7 @@ class SettingsActivity : Activity() {
             else -> "not installed (launcher only)"
         }, "linux")
         item("Default home app", "use Swatonly when pressing Home") { startActivity(Intent(Settings.ACTION_HOME_SETTINGS)) }
-        item("Run setup choice", "launcher only / launcher + Omarchy") {
+        item("Run setup choice", "launcher only / launcher + ${Spin.desktopName}") {
             finish()
             startActivity(Intent(this, LauncherActivity::class.java)
                 .putExtra(LauncherActivity.EXTRA_SETUP_CHOICE, true)
@@ -329,8 +332,10 @@ class SettingsActivity : Activity() {
         switch("CLI / TUI apps", "Terminal=true entries (btop, pulsemixer, bluetuith, pacseek…)", { prefs.showCliApps }) { prefs.showCliApps = it; AppRepository.reload(this) }
         item("Reload app list", null) { IconLoader.clear(); AppRepository.reload(this); Toast.makeText(this, "Reloading…", Toast.LENGTH_SHORT).show() }
         heading("Start")
-        switch("Ask launcher only / launcher + Omarchy on every start", "the first-boot choice, shown each time the launcher starts", { prefs.askSetupEveryStart }) { prefs.askSetupEveryStart = it }
-        switch("Start the desktop with \"Launcher + Omarchy\"", "otherwise only the compositor starts", { prefs.autostartSway }) { prefs.autostartSway = it }
+        if (Spin.omarchy) switch("Ask launcher only / launcher + Omarchy on every start", "the first-boot choice, shown each time the launcher starts", { prefs.askSetupEveryStart }) { prefs.askSetupEveryStart = it }
+        else item("Setup choice", "launcher only / launcher + Manjaro Sway: asked on every start until Manjaro Sway is installed",
+            if (app.rootFs.swayInstalled) "installed" else "asking")
+        switch("Start the desktop with \"Launcher + ${Spin.desktopName}\"", "when the launcher starts; otherwise only the compositor starts", { prefs.autostartSway }) { prefs.autostartSway = it }
     }
 
     private fun windowsPage() {
@@ -385,8 +390,8 @@ class SettingsActivity : Activity() {
         item("Stop all Linux programs", null) { Session.stopAll(); LinuxService.running?.stopSelf(); refresh() }
 
         heading("Install")
-        if (!rootFs.omarchyInstalled) item("Install Omarchy", "launcher + Manjaro Sway + Omarchy") { InstallActivity.start(this, "omarchy") }
-        if (!rootFs.swayInstalled) item("Install Manjaro Sway only", "launcher + sway, without Omarchy") { InstallActivity.start(this, "sway") }
+        if (Spin.omarchy && !rootFs.omarchyInstalled) item("Install Omarchy", "launcher + Manjaro Sway + Omarchy") { InstallActivity.start(this, "omarchy") }
+        if (!rootFs.swayInstalled) item(if (Spin.omarchy) "Install Manjaro Sway only" else "Install Manjaro Sway", "launcher + sway${if (Spin.omarchy) ", without Omarchy" else " under proot, no root"}") { InstallActivity.start(this, "sway") }
         if (rootFs.installedMode == null && !rootFs.isExtracted) item("Install Manjaro base only", "Linux apps and CLI tools, no sway") { InstallActivity.start(this, "base") }
         if (rootFs.isExtracted) item("Repair / re-run setup", "runs setup.sh ${rootFs.installedMode ?: "sway"} again") {
             InstallActivity.start(this, rootFs.installedMode ?: "sway")
@@ -515,8 +520,11 @@ class SettingsActivity : Activity() {
     private fun tilingPage() {
         title.text = "Tiling buttons"
         heading("Window manager")
-        choice("Desktop", if (app.rootFs.hyprlandInstalled) "Hyprland falls back to sway when it cannot start" else "Hyprland comes with Omarchy",
+        if (Spin.omarchy) choice("Desktop", if (app.rootFs.hyprlandInstalled) "Hyprland falls back to sway when it cannot start" else "Hyprland comes with Omarchy",
             listOf("sway" to "sway", "hyprland" to "Hyprland (experimental)"), { prefs.desktopWm }) { prefs.desktopWm = it }
+        item("Tiling menu", "every keybinding and mode of the install's sway, as a menu") {
+            SystemMenu(this) { startActivity(Intent(this, LauncherActivity::class.java)) }.show(org.swatonly.launcher.menu.TilingMenu.ROOT)
+        }
         switch("Tiling buttons", "a row of buttons over the desktop window (toggle it with ▦)", { prefs.showTilingButtons }) { prefs.showTilingButtons = it }
         choice("Workspaces on the bar", "while the desktop runs", listOf(0, 3, 4, 5, 6, 8, 10).map { "$it" to if (it == 0) "off" else "$it" },
             { "${prefs.workspacesOnBar}" }) { prefs.workspacesOnBar = it.toInt(); app.themes.invalidate() }
@@ -555,8 +563,11 @@ class SettingsActivity : Activity() {
         title.text = "System menu"
         heading("Menu")
         item("Open", null) { SystemMenu(this) { startActivity(Intent(this, LauncherActivity::class.java)) }.show() }
-        choice("Source", "auto: Omarchy's menu when Omarchy is installed",
+        if (Spin.omarchy) choice("Source", "auto: Omarchy's menu when Omarchy is installed",
             listOf("auto" to "auto", "omarchy" to "Omarchy (omarchy-menu.jsonc)", "manjaro-sway" to "Manjaro Sway"), { prefs.menuSource }) { prefs.menuSource = it }
+        item("Tiling", "built from the install's /etc/sway/modes: each ## Category // Description ## binding, and each mode (exit, screenshot, recording, resize) as a submenu") {
+            SystemMenu(this) { startActivity(Intent(this, LauncherActivity::class.java)) }.show(org.swatonly.launcher.menu.TilingMenu.ROOT)
+        }
         switch("Icons", "Nerd Font glyphs, when the install has a Nerd Font", { prefs.menuShowIcons }) {
             prefs.menuShowIcons = it
             org.swatonly.launcher.menu.MenuModel.resetIconFont()

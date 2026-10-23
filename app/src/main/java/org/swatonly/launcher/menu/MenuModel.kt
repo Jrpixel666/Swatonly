@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Typeface
 import org.json.JSONObject
 import org.swatonly.launcher.App
+import org.swatonly.launcher.Spin
 import org.swatonly.launcher.linux.Proot
 
 /**
@@ -28,6 +29,8 @@ class MenuModel private constructor(val source: String, private val items: Linke
         val whenCond: String?,
         val checkedCond: String?,
         val disabledCond: String?,
+        /** Shown under the label: the keys of a keybinding entry. */
+        val hint: String? = null,
     ) {
         val parent: String get() = id.substringBeforeLast('.', "")
         val isSubmenu: Boolean get() = action == null && launcher == null && provider == null
@@ -98,7 +101,7 @@ class MenuModel private constructor(val source: String, private val items: Linke
         fun load(ctx: Context): MenuModel {
             val app = App.instance
             val rootFs = app.rootFs
-            val wantOmarchy = when (app.prefs.menuSource) {
+            val wantOmarchy = Spin.omarchy && when (app.prefs.menuSource) {
                 "omarchy" -> true
                 "manjaro-sway" -> false
                 else -> rootFs.omarchyInstalled
@@ -112,12 +115,20 @@ class MenuModel private constructor(val source: String, private val items: Linke
                 parseInto(text, items, "")
                 // the Manjaro Sway menu stays reachable from Omarchy's root
                 items[NESTED] = Item(NESTED, "Manjaro Sway", "", null, null, null, false, null, null, null, null)
+                TilingMenu.addTo(ctx, items, "$NESTED.")
                 parseInto(asset(ctx, "menus/manjaro-sway.jsonc"), items, "$NESTED.")
                 source = if (items.size > 1) "omarchy" else "manjaro-sway"
             } else {
-                parseInto(asset(ctx, "menus/manjaro-sway.jsonc"), items, "")
+                // My apps first, then the tiling window manager's own menu, then the rest
+                val rest = LinkedHashMap<String, Item>()
+                parseInto(asset(ctx, "menus/manjaro-sway.jsonc"), rest, "")
+                rest.remove("apps")?.let { items[it.id] = it }
+                TilingMenu.addTo(ctx, items, "")
+                items.putAll(rest)
                 source = "manjaro-sway"
             }
+            // entries that only make sense in the other spin
+            if (!Spin.omarchy) items.keys.filter { it.contains("omarchy") }.forEach { items.remove(it) }
             rootFs.resolve("/root/.config/swatonly/menu.jsonc")?.takeIf { it.isFile }?.let {
                 try { parseInto(it.readText(), items, "") } catch (_: Exception) {}
             }
